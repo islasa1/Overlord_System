@@ -8,7 +8,12 @@
  *
  *
  */
+
+#include "../Display/charter_module.h"
+
 int main(void) {
 	
+    CharterTest();
+
 	return 0;
 }
