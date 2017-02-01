@@ -31,11 +31,11 @@
 
 //*****************************************************************************
 //
-// Device specific defines depending on tab color
+// Device specific defines for 128x128 Green Tab
 //
 //*****************************************************************************
-#define DISPLAY_COL_START 0
-#define DISPLAY_ROW_START 0
+#define DISPLAY_COL_START 1
+#define DISPLAY_ROW_START 2
 #define DISPLAY_MAX_X     128
 #define DISPLAY_MAX_Y     128
 
@@ -90,14 +90,21 @@
 #define ST7735_GMCTRP1 0xE0
 #define ST7735_GMCTRN1 0xE1
 
+// Color modes
+#define ST7735_12BIT     0x03
+#define ST7735_16BIT     0x05
+#define ST7735_18BIT     0x06
+
+
 //*****************************************************************************
 //
 // Defines the SSI and GPIO peripherals that are used for this display.
 //
 //*****************************************************************************
-#define DISPLAY_SSI_PERIPH          SYSCTL_PERIPH_SSI2
-#define DISPLAY_SSI_GPIO_PERIPH     SYSCTL_PERIPH_GPIOH
-#define DISPLAY_RST_GPIO_PERIPH     SYSCTL_PERIPH_GPIOG
+#define DISPLAY_SSI_PERIPH          SYSCTL_PERIPH_SSI0
+#define DISPLAY_SSI_GPIO_PERIPH     SYSCTL_PERIPH_GPIOA
+#define DISPLAY_RST_GPIO_PERIPH     SYSCTL_PERIPH_GPIOD
+#define DISPLAY_PWR_GPIO_PERIPH     SYSCTL_PERIPH_GPIOC
 
 //*****************************************************************************
 //
@@ -105,49 +112,52 @@
 // the SSI function.
 //
 //*****************************************************************************
-#define DISPLAY_PINCFG_SSICLK       GPIO_PH4_SSI2CLK
-#define DISPLAY_PINCFG_SSIFSS       GPIO_PH5_SSI2FSS
-#define DISPLAY_PINCFG_SSITX        GPIO_PH7_SSI2TX
+#define DISPLAY_PINCFG_SSICLK       GPIO_PA2_SSI0CLK
+#define DISPLAY_PINCFG_SSIFSS       GPIO_PA3_SSI0FSS
+#define DISPLAY_PINCFG_SSITX        GPIO_PA5_SSI0TX
 
 //*****************************************************************************
 //
 // Defines the port and pins for the SSI peripheral.
 //
 //*****************************************************************************
-#define DISPLAY_SSI_PORT            GPIO_PORTH_BASE
-#define DISPLAY_SSI_PINS            (GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_7)
+#define DISPLAY_SSI_PORT            GPIO_PORTA_BASE
+#define DISPLAY_SSI_PINS            (GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_5)
 
 //*****************************************************************************
 //
 // Defines the port and pins for the display voltage enable signal.
 //
 //*****************************************************************************
-#define DISPLAY_ENV_PORT            GPIO_PORTG_BASE
-#define DISPLAY_ENV_PIN             GPIO_PIN_0
+#define DISPLAY_ENV_PORT            GPIO_PORTC_BASE
+#define DISPLAY_ENV_PIN             GPIO_PIN_4
 
 //*****************************************************************************
 //
 // Defines the port and pins for the display reset signal.
 //
 //*****************************************************************************
-#define DISPLAY_RST_PORT            GPIO_PORTG_BASE
-#define DISPLAY_RST_PIN             GPIO_PIN_1
+#define DISPLAY_RST_PORT            GPIO_PORTD_BASE
+#define DISPLAY_RST_PIN             GPIO_PIN_7
 
 //*****************************************************************************
 //
 // Defines the port and pins for the display Data/Command (D/C) signal.
 //
 //*****************************************************************************
-#define DISPLAY_D_C_PORT            GPIO_PORTH_BASE
-#define DISPLAY_D_C_PIN             GPIO_PIN_6
+#define DISPLAY_D_C_PORT            GPIO_PORTA_BASE
+#define DISPLAY_D_C_PIN             GPIO_PIN_4
 
 //*****************************************************************************
 //
 // Defines the SSI peripheral used and the data speed.
 //
 //*****************************************************************************
-#define DISPLAY_SSI_BASE            SSI2_BASE // SSI2
+#define DISPLAY_SSI_BASE            SSI0_BASE // SSI2
 #define DISPLAY_SSI_CLOCK           8000000
+
+// Delays for command set
+#define DELAY 0x80
 
 //*****************************************************************************
 //
@@ -192,7 +202,7 @@ static uint8_t g_ui8DisplayInitCommands[] =
     ST7735_MADCTL , 1      ,  // 14: Memory access control (directions), 1 arg:
       0xC8,                   //     row addr/col addr, bottom to top refresh
     ST7735_COLMOD , 1      ,  // 15: set color mode, 1 arg, no delay:
-      0x05,
+      ST7735_18BIT,
 
     // ST7753R 128x128 uses only green tab
                               // Init for 7735R, part 2 (green 1.44 tab)
@@ -258,57 +268,9 @@ static uint8_t g_ui8DisplayInitCommands[] =
 //
 // Internal Use
 //
-#define ST7735RB18BitColorPack(c) (((ulValue & 0x3f000) << 14) | \
-        ((ulValue & 0x00fc0) << 12)  | \
-        ((ulValue & 0x0003f) << 10)) & 0x03030300
-
-static void
-ST7735RB128x128x18SetAddrWindow(tST7735RDisplayInstance *psDispInst, long xStart, long yStart, long xEnd, long yEnd)
-{
-    uint8_t ui8Cmd[8];
-    uint8_t ui8Data[8];
-
-    //
-    // Set column
-    //
-    xStart += DISPLAY_COL_START;
-    xEnd += DISPLAY_COL_START;
-
-    ui8Cmd[0] = ST7735_CASET;
-    ui8Data[0] = xStart >> 8; // X Start High
-    ui8Data[1] = xStart;      // X Start Low
-    ui8Data[2] = xEnd >> 8;   // X End High
-    ui8Data[3] = xEnd;        // X End Low
-
-    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
-    ST7735RB128x128x18WriteData(ui8Data, 4);
-
-    //
-    // Set row
-    //
-    yStart += DISPLAY_ROW_START;
-    yEnd += DISPLAY_ROW_START;
-
-    ui8Cmd[0] = ST7735_RASET;
-    ui8Data[0] = yStart >> 8; // Y Start High
-    ui8Data[1] = yStart;      // Y Start Low
-    ui8Data[2] = yEnd >> 8;   // Y End High
-    ui8Data[3] = yEnd;        // Y End Low
-
-    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
-    ST7735RB128x128x18WriteData(ui8Data, 4);
-
-    //
-    // Save to RAM
-    //
-    ui8Cmd[0] = ST7735_RAMWR;
-    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
-}
-
-ST7735RB128x128x18PopColor(unsigned long ulValue, uint8_t *ui8Data)
-{
-
-}
+#define ST7735RB18BitColorPack(c) (((c & 0x3f000) << 14) | \
+                                  ((c & 0x00fc0) << 12)  | \
+                                  ((c & 0x0003f) << 10)) & 0x03030300
 
 //*****************************************************************************
 //
@@ -392,6 +354,50 @@ ST7735RB128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
     }
 }
 
+
+static void
+ST7735RB128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
+{
+    uint8_t ui8Cmd[8];
+    uint8_t ui8Data[8];
+
+    //
+    // Set column
+    //
+    xStart += DISPLAY_COL_START;
+    xEnd += DISPLAY_COL_START;
+
+    ui8Cmd[0] = ST7735_CASET;
+    ui8Data[0] = xStart >> 8; // X Start High
+    ui8Data[1] = xStart;      // X Start Low
+    ui8Data[2] = xEnd >> 8;   // X End High
+    ui8Data[3] = xEnd;        // X End Low
+
+    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
+    ST7735RB128x128x18WriteData(ui8Data, 4);
+
+    //
+    // Set row
+    //
+    yStart += DISPLAY_ROW_START;
+    yEnd += DISPLAY_ROW_START;
+
+    ui8Cmd[0] = ST7735_RASET;
+    ui8Data[0] = yStart >> 8; // Y Start High
+    ui8Data[1] = yStart;      // Y Start Low
+    ui8Data[2] = yEnd >> 8;   // Y End High
+    ui8Data[3] = yEnd;        // Y End Low
+
+    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
+    ST7735RB128x128x18WriteData(ui8Data, 4);
+
+    //
+    // Save to RAM
+    //
+    ui8Cmd[0] = ST7735_RAMWR;
+    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
+}
+
 //*****************************************************************************
 //
 //! Draws a pixel on the screen.
@@ -409,16 +415,15 @@ ST7735RB128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18PixelDraw(void *pvDisplayData, long i32X, long i32Y,
+ST7735RB128x128x18PixelDraw(void *pvDisplayData, int32_t i32X, int32_t i32Y,
                             uint32_t ulValue)
 {
-    uint8_t ui8Data[8];
     uint32_t ui32PackedColor;
 
-    ST7735RB128x128x18SetAddrWindow(pvDisplayData, i32X, i32Y, i32X + 1, i32Y + 1);
+    ST7735RB128x128x18SetAddrWindow(i32X, i32Y, i32X + 1, i32Y + 1);
 
     ui32PackedColor = ST7735RB18BitColorPack(ulValue);
-    ST7735RB128x128x18WriteData((ui8Data*) &ui32PackedColor, 3);
+    ST7735RB128x128x18WriteData((uint8_t*) &ui32PackedColor, 3);
 }
 
 //*****************************************************************************
@@ -456,7 +461,7 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
     uint32_t ui32Byte;
     uint32_t ui32Color;
 
-    ST7735RB128x128x18SetAddrWindow(pvDisplayData, i32X, i32Y, DISPLAY_MAX_X, DISPLAY_MAX_Y);
+    ST7735RB128x128x18SetAddrWindow(i32X, i32Y, DISPLAY_MAX_X, DISPLAY_MAX_Y);
 
     //
     // Determine how to interpret the pixel data based on the number of bits
@@ -464,72 +469,98 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
     //
     switch(i32BPP & 0xFF)
     {
-    //
-    // The pixel data is in 1 bit per pixel format.
-    //
-    case 1:
-    {
         //
-        // Loop while there are more pixels to draw.
+        // The pixel data is in 1 bit per pixel format.
         //
-        while(i32Count)
+        case 1:
         {
             //
-            // Get the next byte of image data.
+            // Loop while there are more pixels to draw.
             //
-            ui32Byte = *pui8Data++;
-
-            //
-            // Loop through the pixels in this byte of image data.
-            //
-            for(; (i32X0 < 8) && i32Count; i32X0++, i32Count--)
+            while(i32Count)
             {
                 //
-                // Draw this pixel in the appropriate color.
+                // Get the next byte of image data.
                 //
-                ui32Color = ST7735RB18BitColorPack(((uint32_t *)pui8Palette)[(ui32Byte >> (7 - i32X0)) & 1]); // retrieve already translated color and pack it
-                ST7735RB128x128x18WriteData((ui8Data*) &ui32Color, 3);
+                ui32Byte = *pui8Data++;
+
+                //
+                // Loop through the pixels in this byte of image data.
+                //
+                for(; (i32X0 < 8) && i32Count; i32X0++, i32Count--)
+                {
+                    //
+                    // Draw this pixel in the appropriate color.
+                    //
+                    ui32Color = ST7735RB18BitColorPack(((uint32_t *)pui8Palette)[(ui32Byte >> (7 - i32X0)) & 1]); // retrieve already translated color and pack it
+                    ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                }
+
+                //
+                // Start at the beginning of the next byte of image data.
+                //
+                i32X0 = 0;
             }
 
             //
-            // Start at the beginning of the next byte of image data.
+            // The image data has been drawn.
             //
-            i32X0 = 0;
+            break;
         }
 
         //
-        // The image data has been drawn.
+        // The pixel data is in 4 bit per pixel format.
         //
-        break;
-    }
-
-    //
-    // The pixel data is in 4 bit per pixel format.
-    //
-    case 4:
-    {
-        //
-        // Loop while there are more pixels to draw.  "Duff's device" is
-        // used to jump into the middle of the loop if the first nibble of
-        // the pixel data should not be used.  Duff's device makes use of
-        // the fact that a case statement is legal anywhere within a
-        // sub-block of a switch statement.  See
-        // http://en.wikipedia.org/wiki/Duff's_device for detailed
-        // information about Duff's device.
-        //
-        switch(i32X0 & 1)
+        case 4:
         {
-        case 0:
-            while(i32Count)
+            //
+            // Loop while there are more pixels to draw.  "Duff's device" is
+            // used to jump into the middle of the loop if the first nibble of
+            // the pixel data should not be used.  Duff's device makes use of
+            // the fact that a case statement is legal anywhere within a
+            // sub-block of a switch statement.  See
+            // http://en.wikipedia.org/wiki/Duff's_device for detailed
+            // information about Duff's device.
+            //
+            switch(i32X0 & 1)
             {
-                uint32_t ui32Color;
+            case 0:
+                while(i32Count)
+                {
+                    uint32_t ui32Color;
 
+                    //
+                    // Get the upper nibble of the next byte of pixel data
+                    // and extract the corresponding entry from the
+                    // palette.
+                    //
+                    ui32Byte = (*pui8Data >> 4) * 3;
+                    ui32Byte = (*(uint32_t *)(pui8Palette + ui32Byte) & 0x00ffffff);
+
+                    //
+                    // Translate this palette entry and write it to the
+                    // screen.
+                    //
+                    ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                    ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
+
+                    //
+                    // Decrement the count of pixels to draw.
+                    //
+                    i32Count--;
+
+                    //
+                    // See if there is another pixel to draw.
+                    //
+                    if(i32Count)
+                    {
+            case 1:
                 //
-                // Get the upper nibble of the next byte of pixel data
-                // and extract the corresponding entry from the
-                // palette.
+                // Get the lower nibble of the next byte of pixel
+                // data and extract the corresponding entry from
+                // the palette.
                 //
-                ui32Byte = (*pui8Data >> 4) * 3;
+                ui32Byte = (*pui8Data++ & 15) * 3;
                 ui32Byte = (*(uint32_t *)(pui8Palette + ui32Byte) & 0x00ffffff);
 
                 //
@@ -537,79 +568,52 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
                 // screen.
                 //
                 ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-                ST7735RB128x128x18WriteData((ui8Data*) &ui32Color, 3);
+                ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
 
                 //
                 // Decrement the count of pixels to draw.
                 //
                 i32Count--;
-
-                //
-                // See if there is another pixel to draw.
-                //
-                if(i32Count)
-                {
-        case 1:
-            //
-            // Get the lower nibble of the next byte of pixel
-            // data and extract the corresponding entry from
-            // the palette.
-            //
-            ui32Byte = (*pui8Data++ & 15) * 3;
-            ui32Byte = (*(uint32_t *)(pui8Palette + ui32Byte) & 0x00ffffff);
-
-            //
-            // Translate this palette entry and write it to the
-            // screen.
-            //
-            ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-            ST7735RB128x128x18WriteData((ui8Data*) &ui32Color, 3);
-
-            //
-            // Decrement the count of pixels to draw.
-            //
-            i32Count--;
+                    }
                 }
             }
+
+            //
+            // The image data has been drawn.
+            //
+            break;
         }
 
         //
-        // The image data has been drawn.
+        // The pixel data is in 8 bit per pixel format.
         //
-        break;
-    }
-
-    //
-    // The pixel data is in 8 bit per pixel format.
-    //
-    case 8:
-    {
-        //
-        // Loop while there are more pixels to draw.
-        //
-        while(i32Count--)
+        case 8:
         {
-            uint8_t ui8Color;
+            //
+            // Loop while there are more pixels to draw.
+            //
+            while(i32Count--)
+            {
+
+                //
+                // Get the next byte of pixel data and extract the
+                // corresponding entry from the palette.
+                //
+                ui32Byte = *pui8Data++ * 3;
+                ui32Byte = *(uint32_t *)(pui8Palette + ui32Byte) & 0x00ffffff;
+
+                //
+                // Translate this palette entry and write it to the screen.
+                //
+                ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
+            }
 
             //
-            // Get the next byte of pixel data and extract the
-            // corresponding entry from the palette.
+            // The image data has been drawn.
             //
-            ui32Byte = *pui8Data++ * 3;
-            ui32Byte = *(uint32_t *)(pui8Palette + ui32Byte) & 0x00ffffff;
-
-            //
-            // Translate this palette entry and write it to the screen.
-            //
-            ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-            ST7735RB128x128x18WriteData((ui8Data*) &ui32Color, 3);
+            break;
         }
-
-        //
-        // The image data has been drawn.
-        //
-        break;
-    }
     }
 }
 
@@ -637,7 +641,7 @@ ST7735RB128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, i
     uint32_t ui32LineBuf[16];
     unsigned int uIdx;
 
-    ST7735RB128x128x18SetAddrWindow(pvDisplayData, i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X, i32Y + 1);
+    ST7735RB128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X, i32Y + 1);
 
     //
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
@@ -652,7 +656,7 @@ ST7735RB128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, i
     uIdx += 1;
     while(uIdx)
     {
-        ST7735RB128x128x18WriteData(ui32LineBuf, (uIdx < 16) ? uIdx : 16);
+        ST7735RB128x128x18WriteData((uint8_t*)ui32LineBuf, (uIdx < 16) ? uIdx : 16);
         uIdx -= (uIdx < 16) ? uIdx : 16;
     }
 }
@@ -681,7 +685,7 @@ ST7735RB128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, in
     uint8_t ui32LineBuf[16];
     unsigned int uIdx;
 
-    ST7735RB128x128x18SetAddrWindow(pvDisplayData, i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X + 1, DISPLAY_MAX_Y);
+    ST7735RB128x128x18SetAddrWindow(i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X + 1, DISPLAY_MAX_Y);
 
     //
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
@@ -821,6 +825,7 @@ ST7735RB128x128x18Init(void)
     ROM_SysCtlPeripheralEnable(DISPLAY_SSI_PERIPH);
     ROM_SysCtlPeripheralEnable(DISPLAY_SSI_GPIO_PERIPH);
     ROM_SysCtlPeripheralEnable(DISPLAY_RST_GPIO_PERIPH);
+    ROM_SysCtlPeripheralEnable(DISPLAY_PWR_GPIO_PERIPH);
 
     //
     // Select the SSI function for the appropriate pins
