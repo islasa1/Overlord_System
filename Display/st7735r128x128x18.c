@@ -86,6 +86,9 @@
 #define ST7735_16BIT     0x05
 #define ST7735_18BIT     0x06
 
+// Based on color mode - refer to packing
+#define ST7735_BYTES_PER_PIXEL  (3)
+
 
 //*****************************************************************************
 //
@@ -246,22 +249,22 @@ static uint8_t g_ui8DisplayInitCommands[] =
 //
 //*****************************************************************************
 #define DPYCOLORTRANSLATE18(c)  ((((c) & 0x00fc0000) >> 6)  |                 \
-        (((c) & 0x0000fc00) >> 4) |                                           \
-        (((c) & 0x000000fc) >> 2))
+                                 (((c) & 0x0000fc00) >> 4)  |                 \
+                                 (((c) & 0x000000fc) >> 2))
 #define DPYCOLORTRANSLATE16(c)  ((((c) & 0x00f80000) >> 8)  |                 \
-        (((c) & 0x0000fc00) >> 5) |                                           \
-        (((c) & 0x000000f8) >> 3))
+                                 (((c) & 0x0000fc00) >> 5)  |                 \
+                                 (((c) & 0x000000f8) >> 3))
 #define DPYCOLORTRANSLATE8(c)   ((((c) & 0x00e00000) >> 16) |                 \
-        (((c) & 0x0000e000) >> 11) |                                          \
-        (((c) & 0x000000c0) >> 6))
+                                 (((c) & 0x0000e000) >> 11) |                 \
+                                 (((c) & 0x000000c0) >> 6))
 #define DPYCOLORTRANSLATE DPYCOLORTRANSLATE18
 
 //
 // Internal Use
 //
-#define ST7735R18BitColorPack(c) (((c & 0x3f000) << 14) | \
+#define ST7735R18BitColorPack(c) (((c & 0x3f000) << 14)  | \
                                   ((c & 0x00fc0) << 12)  | \
-                                  ((c & 0x0003f) << 10)) & 0x03030300
+                                  ((c & 0x0003f) << 10)) & 0xfcfcfc00
 
 //*****************************************************************************
 //
@@ -629,8 +632,9 @@ static void
 ST7735R128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, int32_t i32Y,
                             uint32_t ui32Value)
 {
-    uint32_t ui32LineBuf[16];
+    uint8_t ui8LineBuf[16 * ST7735_BYTES_PER_PIXEL];
     unsigned int uIdx;
+    uint32_t ui32PackedColor = ST7735R18BitColorPack(ui32Value);
 
     ST7735R128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X, i32Y + 1);
 
@@ -638,16 +642,18 @@ ST7735R128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, in
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
     // one time.  Fill the buffer with the line color.
     //
-    for(uIdx = 0; uIdx < sizeof(ui32LineBuf); uIdx++)
+    for(uIdx = 0; uIdx < sizeof(ui8LineBuf); uIdx += ST7735_BYTES_PER_PIXEL)
     {
-        ui32LineBuf[uIdx] = ST7735R18BitColorPack(ui32Value);
+        ui8LineBuf[uIdx] = (ui32PackedColor >> 24) & 0x000000ff;
+        ui8LineBuf[uIdx + 1] = (ui32PackedColor >> 16) & 0x000000ff;
+        ui8LineBuf[uIdx + 2] = (ui32PackedColor >> 8) & 0x000000ff;
     }
 
     uIdx = (i32X1 < i32X2) ? (i32X2 - i32X1) : (i32X1 - i32X2);
     uIdx += 1;
     while(uIdx)
     {
-        ST7735R128x128x18WriteData((uint8_t*)ui32LineBuf, (uIdx < 16) ? uIdx : 16);
+        ST7735R128x128x18WriteData(ui8LineBuf, (uIdx < 16) ? uIdx : 16);
         uIdx -= (uIdx < 16) ? uIdx : 16;
     }
 }
@@ -673,8 +679,9 @@ static void
 ST7735R128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, int32_t i32Y2,
                             uint32_t ui32Value)
 {
-    uint8_t ui32LineBuf[16];
+    uint8_t ui8LineBuf[16 * ST7735_BYTES_PER_PIXEL];
     unsigned int uIdx;
+    uint32_t ui32PackedColor = ST7735R18BitColorPack(ui32Value);
 
     ST7735R128x128x18SetAddrWindow(i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X + 1, DISPLAY_MAX_Y);
 
@@ -682,16 +689,18 @@ ST7735R128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, int
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
     // one time.  Fill the buffer with the line color.
     //
-    for(uIdx = 0; uIdx < sizeof(ui32LineBuf); uIdx++)
+    for(uIdx = 0; uIdx < sizeof(ui8LineBuf); uIdx += ST7735_BYTES_PER_PIXEL)
     {
-        ui32LineBuf[uIdx] = ST7735R18BitColorPack(ui32Value);
+        ui8LineBuf[uIdx] = (ui32PackedColor >> 24) & 0x000000ff;
+        ui8LineBuf[uIdx + 1] = (ui32PackedColor >> 16) & 0x000000ff;
+        ui8LineBuf[uIdx + 2] = (ui32PackedColor >> 8) & 0x000000ff;
     }
 
     uIdx = (i32Y1 < i32Y2) ? (i32Y2 - i32Y1) : (i32Y1 - i32Y2);
     uIdx += 1;
     while(uIdx)
     {
-        ST7735R128x128x18WriteData(ui32LineBuf, (uIdx < 16) ? uIdx : 16);
+        ST7735R128x128x18WriteData(ui8LineBuf, (uIdx < 16) ? uIdx : 16);
         uIdx -= (uIdx < 16) ? uIdx : 16;
     }
 }
