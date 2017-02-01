@@ -8,13 +8,14 @@
 
 #include "charter_module.h"
 
-static tST7735RDisplayInstance g_Disp;
-static tSPIInstance g_SPI;
+// Display defines
+#define X_MAX   (GrContextDpyWidthGet(&g_sContext) - 1)
+#define Y_MAX   (GrContextDpyHeightGet(&g_sContext) - 1)
+
+tContext g_sContext;
 
 void CharterInit(void)
 {
-    MAP_SysCtlPeripheralEnable(SPI_SSI_SYS_PERIPH);
-    MAP_SysCtlPeripheralEnable(SPI_GPIO_SYS_PERIPH);
 #ifdef PWM_DISPLAY
     MAP_SysCtlPeripheralEnable(PWM_SYS_PERIPH);
 
@@ -27,52 +28,31 @@ void CharterInit(void)
 #endif
 
     //
-    // Data/Command Pin
-    // GPIO Pin Mux for PA4 for GPIO_PA4
+    // Initialize the display driver
     //
-    MAP_GPIOPinTypeGPIOOutput(SPI_DC_PORT, SPI_DC_PIN);
+    ST7735R128x128x18Init();
 
     //
-    // Chip Select
-    // GPIO Pin Mux for PA3 for GPIO_PA3
+    // Initialize the graphics context
     //
-    MAP_GPIOPinTypeGPIOOutput(SPI_CS_PORT, SPI_CS_PIN);
+    GrContextInit(&g_sContext, &g_sST7735R128x128x18);
 
-    //
-    // MOSI
-    // GPIO Pin Mux for PA5 for SSI0TX
-    //
-    MAP_GPIOPinConfigure(MOSI_GPIO_CONFIG);
-    MAP_GPIOPinTypeSSI(SPI_MOSI_PORT, SPI_MOSI_PIN);
-
-    //
-    // SCLK
-    // GPIO Pin Mux for PA2 for SSI0CLK
-    //
-    MAP_GPIOPinConfigure(SCLK_GPIO_CONFIG);
-    MAP_GPIOPinTypeSSI(SPI_SCLK_PORT, SPI_SCLK_PIN);
-
-    // Initialize SPI
-    SPIInit(&g_SPI,                     // Main Struct
-            SPI_CS_PIN, SPI_CS_PORT,    // CS Port and Pin
-            SSI0_BASE,                  // SSI Base
-            SPI_CLK_RATE,               // SSI Clock
-            SSI_FRF_MOTO_MODE_0,        // Protocol
-            SSI_MODE_MASTER,            // Mode
-            SPI_BIT_RATE,               // Bit Rate
-            SPI_PKT_SIZE);              // Data Width
-    // Enable the SPI Bus
-    SPIEnable(&g_SPI);
-
-    // Initialize ST7735R TFT
-    ST7735RInit(&g_Disp, &g_SPI,
-                SPI_DC_PIN, SPI_DC_PORT,
-                INITR_18GREENTAB);
 }
 
 void CharterTest(void)
 {
+    tRectangle sRect;
+
     CharterInit();
-    // Draw something
-    fillScreen(&g_Disp, ST7735_GREEN);
+
+    //
+    // Draw pixels to the screen
+    //
+    sRect.i16XMin = 0;
+    sRect.i16YMin = 0;
+    sRect.i16XMax = X_MAX;
+    sRect.i16YMin = Y_MAX;
+
+    GrContextForegroundSet(&g_sContext, ClrGreen);
+    GrRectFill(&g_sContext, &sRect);
 }

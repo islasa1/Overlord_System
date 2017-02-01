@@ -9,7 +9,7 @@
 #ifndef __DISPLAY_CHARTERMODULE_H__
 #define __DISPLAY_CHARTERMODULE_H__
 
-#include "HAL_ST7735.h"
+#include "st7735r128x128x18.h"
 
 #define SPI_CLK_RATE        SysCtlClockGet()
 #define SPI_BIT_RATE        (400000)

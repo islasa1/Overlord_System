@@ -2,7 +2,7 @@
 
 //*****************************************************************************
 //
-// st7735rb128x128x18.c - Display driver for the Adafruit ST7735RBR TFT LCD
+// st7735rb128x128x18.c - Display driver for the Adafruit ST7735RR TFT LCD
 //                        display. This version uses an SSI interface to the
 //                        display controller. The 128x128 TFT display only
 //                        uses the green tab
@@ -18,16 +18,7 @@
 //
 //*****************************************************************************
 
-#include <stdbool.h>
-#include <stdint.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/gpio.h"
-#include "driverlib/ssi.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/rom.h"
-#include "driverlib/pin_map.h"
-#include "grlib/grlib.h"
-#include "ST7735RB128x128x18.h"
+#include "ST7735R128x128x18.h"
 
 //*****************************************************************************
 //
@@ -268,7 +259,7 @@ static uint8_t g_ui8DisplayInitCommands[] =
 //
 // Internal Use
 //
-#define ST7735RB18BitColorPack(c) (((c & 0x3f000) << 14) | \
+#define ST7735R18BitColorPack(c) (((c & 0x3f000) << 14) | \
                                   ((c & 0x00fc0) << 12)  | \
                                   ((c & 0x0003f) << 10)) & 0x03030300
 
@@ -291,7 +282,7 @@ static uint8_t g_ui8DisplayInitCommands[] =
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18WriteCommand(const uint8_t *pi8Cmd, uint32_t ui32Count)
+ST7735R128x128x18WriteCommand(const uint8_t *pi8Cmd, uint32_t ui32Count)
 {
     //
     // Wait for any previous SSI operation to finish.
@@ -332,7 +323,7 @@ ST7735RB128x128x18WriteCommand(const uint8_t *pi8Cmd, uint32_t ui32Count)
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
+ST7735R128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
 {
     //
     // Wait for any previous SSI operation to finish.
@@ -356,7 +347,7 @@ ST7735RB128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
 
 
 static void
-ST7735RB128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
+ST7735R128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
 {
     uint8_t ui8Cmd[8];
     uint8_t ui8Data[8];
@@ -373,8 +364,8 @@ ST7735RB128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
     ui8Data[2] = xEnd >> 8;   // X End High
     ui8Data[3] = xEnd;        // X End Low
 
-    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
-    ST7735RB128x128x18WriteData(ui8Data, 4);
+    ST7735R128x128x18WriteCommand(ui8Cmd, 1);
+    ST7735R128x128x18WriteData(ui8Data, 4);
 
     //
     // Set row
@@ -388,14 +379,14 @@ ST7735RB128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
     ui8Data[2] = yEnd >> 8;   // Y End High
     ui8Data[3] = yEnd;        // Y End Low
 
-    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
-    ST7735RB128x128x18WriteData(ui8Data, 4);
+    ST7735R128x128x18WriteCommand(ui8Cmd, 1);
+    ST7735R128x128x18WriteData(ui8Data, 4);
 
     //
     // Save to RAM
     //
     ui8Cmd[0] = ST7735_RAMWR;
-    ST7735RB128x128x18WriteCommand(ui8Cmd, 1);
+    ST7735R128x128x18WriteCommand(ui8Cmd, 1);
 }
 
 //*****************************************************************************
@@ -415,15 +406,15 @@ ST7735RB128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18PixelDraw(void *pvDisplayData, int32_t i32X, int32_t i32Y,
+ST7735R128x128x18PixelDraw(void *pvDisplayData, int32_t i32X, int32_t i32Y,
                             uint32_t ulValue)
 {
     uint32_t ui32PackedColor;
 
-    ST7735RB128x128x18SetAddrWindow(i32X, i32Y, i32X + 1, i32Y + 1);
+    ST7735R128x128x18SetAddrWindow(i32X, i32Y, i32X + 1, i32Y + 1);
 
-    ui32PackedColor = ST7735RB18BitColorPack(ulValue);
-    ST7735RB128x128x18WriteData((uint8_t*) &ui32PackedColor, 3);
+    ui32PackedColor = ST7735R18BitColorPack(ulValue);
+    ST7735R128x128x18WriteData((uint8_t*) &ui32PackedColor, 3);
 }
 
 //*****************************************************************************
@@ -453,7 +444,7 @@ ST7735RB128x128x18PixelDraw(void *pvDisplayData, int32_t i32X, int32_t i32Y,
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i32Y, int32_t i32X0,
+ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i32Y, int32_t i32X0,
                                     int32_t i32Count, int32_t i32BPP,
                                     const uint8_t *pui8Data,
                                     const uint8_t *pui8Palette)
@@ -461,7 +452,7 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
     uint32_t ui32Byte;
     uint32_t ui32Color;
 
-    ST7735RB128x128x18SetAddrWindow(i32X, i32Y, DISPLAY_MAX_X, DISPLAY_MAX_Y);
+    ST7735R128x128x18SetAddrWindow(i32X, i32Y, DISPLAY_MAX_X, DISPLAY_MAX_Y);
 
     //
     // Determine how to interpret the pixel data based on the number of bits
@@ -492,8 +483,8 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
                     //
                     // Draw this pixel in the appropriate color.
                     //
-                    ui32Color = ST7735RB18BitColorPack(((uint32_t *)pui8Palette)[(ui32Byte >> (7 - i32X0)) & 1]); // retrieve already translated color and pack it
-                    ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                    ui32Color = ST7735R18BitColorPack(((uint32_t *)pui8Palette)[(ui32Byte >> (7 - i32X0)) & 1]); // retrieve already translated color and pack it
+                    ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
                 }
 
                 //
@@ -541,8 +532,8 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
                     // Translate this palette entry and write it to the
                     // screen.
                     //
-                    ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-                    ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                    ui32Color = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                    ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
 
                     //
                     // Decrement the count of pixels to draw.
@@ -567,8 +558,8 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
                 // Translate this palette entry and write it to the
                 // screen.
                 //
-                ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-                ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                ui32Color = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
 
                 //
                 // Decrement the count of pixels to draw.
@@ -605,8 +596,8 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
                 //
                 // Translate this palette entry and write it to the screen.
                 //
-                ui32Color = ST7735RB18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-                ST7735RB128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                ui32Color = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
             }
 
             //
@@ -635,13 +626,13 @@ ST7735RB128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, int32_t i32Y,
+ST7735R128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, int32_t i32Y,
                             uint32_t ui32Value)
 {
     uint32_t ui32LineBuf[16];
     unsigned int uIdx;
 
-    ST7735RB128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X, i32Y + 1);
+    ST7735R128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X, i32Y + 1);
 
     //
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
@@ -649,14 +640,14 @@ ST7735RB128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, i
     //
     for(uIdx = 0; uIdx < sizeof(ui32LineBuf); uIdx++)
     {
-        ui32LineBuf[uIdx] = ST7735RB18BitColorPack(ui32Value);
+        ui32LineBuf[uIdx] = ST7735R18BitColorPack(ui32Value);
     }
 
     uIdx = (i32X1 < i32X2) ? (i32X2 - i32X1) : (i32X1 - i32X2);
     uIdx += 1;
     while(uIdx)
     {
-        ST7735RB128x128x18WriteData((uint8_t*)ui32LineBuf, (uIdx < 16) ? uIdx : 16);
+        ST7735R128x128x18WriteData((uint8_t*)ui32LineBuf, (uIdx < 16) ? uIdx : 16);
         uIdx -= (uIdx < 16) ? uIdx : 16;
     }
 }
@@ -679,13 +670,13 @@ ST7735RB128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, i
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, int32_t i32Y2,
+ST7735R128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, int32_t i32Y2,
                             uint32_t ui32Value)
 {
     uint8_t ui32LineBuf[16];
     unsigned int uIdx;
 
-    ST7735RB128x128x18SetAddrWindow(i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X + 1, DISPLAY_MAX_Y);
+    ST7735R128x128x18SetAddrWindow(i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X + 1, DISPLAY_MAX_Y);
 
     //
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
@@ -693,14 +684,14 @@ ST7735RB128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, in
     //
     for(uIdx = 0; uIdx < sizeof(ui32LineBuf); uIdx++)
     {
-        ui32LineBuf[uIdx] = ST7735RB18BitColorPack(ui32Value);
+        ui32LineBuf[uIdx] = ST7735R18BitColorPack(ui32Value);
     }
 
     uIdx = (i32Y1 < i32Y2) ? (i32Y2 - i32Y1) : (i32Y1 - i32Y2);
     uIdx += 1;
     while(uIdx)
     {
-        ST7735RB128x128x18WriteData(ui32LineBuf, (uIdx < 16) ? uIdx : 16);
+        ST7735R128x128x18WriteData(ui32LineBuf, (uIdx < 16) ? uIdx : 16);
         uIdx -= (uIdx < 16) ? uIdx : 16;
     }
 }
@@ -723,14 +714,14 @@ ST7735RB128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, in
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18RectFill(void *pvDisplayData, const tRectangle *pRect,
+ST7735R128x128x18RectFill(void *pvDisplayData, const tRectangle *pRect,
                            uint32_t ui32Value)
 {
     unsigned int uY;
 
     for(uY = pRect->i16YMin; uY <= pRect->i16YMax; uY++)
     {
-        ST7735RB128x128x18LineDrawH(0, pRect->i16XMin, pRect->i16XMax, uY, ui32Value);
+        ST7735R128x128x18LineDrawH(0, pRect->i16XMin, pRect->i16XMax, uY, ui32Value);
     }
 }
 
@@ -752,7 +743,7 @@ ST7735RB128x128x18RectFill(void *pvDisplayData, const tRectangle *pRect,
 //
 //*****************************************************************************
 static uint32_t
-ST7735RB128x128x18ColorTranslate(void *pvDisplayData, uint32_t ui32Value)
+ST7735R128x128x18ColorTranslate(void *pvDisplayData, uint32_t ui32Value)
 {
     //
     // Translate from a 24-bit RGB color to a 6-6-6 RGB color.
@@ -776,7 +767,7 @@ ST7735RB128x128x18ColorTranslate(void *pvDisplayData, uint32_t ui32Value)
 //
 //*****************************************************************************
 static void
-ST7735RB128x128x18Flush(void *pvDisplayData)
+ST7735R128x128x18Flush(void *pvDisplayData)
 {
     //
     // There is nothing to be done.
@@ -789,19 +780,19 @@ ST7735RB128x128x18Flush(void *pvDisplayData)
 //! CFAL9664-F-B1 OLED panel with SSD 1332 controller.
 //
 //*****************************************************************************
-const tDisplay g_sST7735RB128x128x18 =
+const tDisplay g_sST7735R128x128x18 =
 {
     sizeof(tDisplay),
     0,
     128,
     128,
-    ST7735RB128x128x18PixelDraw,
-    ST7735RB128x128x18PixelDrawMultiple,
-    ST7735RB128x128x18LineDrawH,
-    ST7735RB128x128x18LineDrawV,
-    ST7735RB128x128x18RectFill,
-    ST7735RB128x128x18ColorTranslate,
-    ST7735RB128x128x18Flush
+    ST7735R128x128x18PixelDraw,
+    ST7735R128x128x18PixelDrawMultiple,
+    ST7735R128x128x18LineDrawH,
+    ST7735R128x128x18LineDrawV,
+    ST7735R128x128x18RectFill,
+    ST7735R128x128x18ColorTranslate,
+    ST7735R128x128x18Flush
 };
 
 //*****************************************************************************
@@ -815,7 +806,7 @@ const tDisplay g_sST7735RB128x128x18 =
 //
 //*****************************************************************************
 void
-ST7735RB128x128x18Init(void)
+ST7735R128x128x18Init(void)
 {
     tRectangle sRect;
 
@@ -884,7 +875,7 @@ ST7735RB128x128x18Init(void)
     //
     // Send the initial configuration command bytes to the display
     //
-    ST7735RB128x128x18WriteCommand(g_ui8DisplayInitCommands,
+    ST7735R128x128x18WriteCommand(g_ui8DisplayInitCommands,
                                    sizeof(g_ui8DisplayInitCommands));
     ROM_SysCtlDelay(1000);
 
@@ -895,7 +886,7 @@ ST7735RB128x128x18Init(void)
     sRect.i16XMax = DISPLAY_MAX_X;
     sRect.i16YMin = 0;
     sRect.i16YMax = DISPLAY_MAX_Y;
-    ST7735RB128x128x18RectFill(0, &sRect, 0);
+    ST7735R128x128x18RectFill(0, &sRect, 0);
 }
 
 //*****************************************************************************
