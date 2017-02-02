@@ -348,7 +348,7 @@ ST7735R128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
     }
 }
 
-
+//! FIXME
 static void
 ST7735R128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
 {
