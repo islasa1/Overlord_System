@@ -8,6 +8,10 @@
  *
  *
  */
+
+#include <stdint.h>
+#include "../Power/HAL_BQ27441.h"
+
 int main(void) {
 	
 	return 0;
