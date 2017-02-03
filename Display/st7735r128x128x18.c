@@ -290,19 +290,19 @@ ST7735R128x128x18WriteCommand(const uint8_t *pi8Cmd, uint32_t ui32Count)
     //
     // Wait for any previous SSI operation to finish.
     //
-    while(ROM_SSIBusy(DISPLAY_SSI_BASE));
+    while(MAP_SSIBusy(DISPLAY_SSI_BASE));
 
     //
     // Set the D/C pin low to indicate command
     //
-    ROM_GPIOPinWrite(DISPLAY_D_C_PORT, DISPLAY_D_C_PIN, 0);
+    MAP_GPIOPinWrite(DISPLAY_D_C_PORT, DISPLAY_D_C_PIN, 0);
 
     //
     // Send all the command bytes to the display
     //
     while(ui32Count--)
     {
-        ROM_SSIDataPut(DISPLAY_SSI_BASE, *pi8Cmd);
+        MAP_SSIDataPut(DISPLAY_SSI_BASE, *pi8Cmd);
         pi8Cmd++;
     }
 }
@@ -331,24 +331,24 @@ ST7735R128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
     //
     // Wait for any previous SSI operation to finish.
     //
-    while(ROM_SSIBusy(DISPLAY_SSI_BASE));
+    while(MAP_SSIBusy(DISPLAY_SSI_BASE));
 
     //
     // Set the D/C pin high to indicate data
     //
-    ROM_GPIOPinWrite(DISPLAY_D_C_PORT, DISPLAY_D_C_PIN, DISPLAY_D_C_PIN);
+    MAP_GPIOPinWrite(DISPLAY_D_C_PORT, DISPLAY_D_C_PIN, DISPLAY_D_C_PIN);
 
     //
     // Send all the data bytes to the display
     //
     while(ui32Count--)
     {
-        ROM_SSIDataPut(DISPLAY_SSI_BASE, *pi8Data);
+        MAP_SSIDataPut(DISPLAY_SSI_BASE, *pi8Data);
         pi8Data++;
     }
 }
 
-
+// FIXME: Shifting of long is causing errors
 static void
 ST7735R128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
 {
@@ -386,7 +386,7 @@ ST7735R128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
     ST7735R128x128x18WriteData(ui8Data, 4);
 
     //
-    // Save to RAM
+    // Write to RAM
     //
     ui8Cmd[0] = ST7735_RAMWR;
     ST7735R128x128x18WriteCommand(ui8Cmd, 1);
@@ -822,71 +822,112 @@ ST7735R128x128x18Init(void)
     //
     // Enable the peripherals used by this driver
     //
-    ROM_SysCtlPeripheralEnable(DISPLAY_SSI_PERIPH);
-    ROM_SysCtlPeripheralEnable(DISPLAY_SSI_GPIO_PERIPH);
-    ROM_SysCtlPeripheralEnable(DISPLAY_RST_GPIO_PERIPH);
-    ROM_SysCtlPeripheralEnable(DISPLAY_PWR_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(DISPLAY_SSI_PERIPH);
+    MAP_SysCtlPeripheralEnable(DISPLAY_SSI_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(DISPLAY_RST_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(DISPLAY_PWR_GPIO_PERIPH);
 
     //
     // Select the SSI function for the appropriate pins
     //
-    ROM_GPIOPinConfigure(DISPLAY_PINCFG_SSICLK);
-    ROM_GPIOPinConfigure(DISPLAY_PINCFG_SSIFSS);
-    ROM_GPIOPinConfigure(DISPLAY_PINCFG_SSITX);
+    MAP_GPIOPinConfigure(DISPLAY_PINCFG_SSICLK);
+    MAP_GPIOPinConfigure(DISPLAY_PINCFG_SSIFSS);
+    MAP_GPIOPinConfigure(DISPLAY_PINCFG_SSITX);
 
 
     //
     // Configure the pins for the SSI function
     //
-    ROM_GPIOPinTypeSSI(DISPLAY_SSI_PORT, DISPLAY_SSI_PINS);
+    MAP_GPIOPinTypeSSI(DISPLAY_SSI_PORT, DISPLAY_SSI_PINS);
 
     //
     // Configure display control pins as GPIO output
     //
-    ROM_GPIOPinTypeGPIOOutput(DISPLAY_RST_PORT, DISPLAY_RST_PIN);
-    ROM_GPIOPinTypeGPIOOutput(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN);
-    ROM_GPIOPinTypeGPIOOutput(DISPLAY_D_C_PORT, DISPLAY_D_C_PIN);
+    MAP_GPIOPinTypeGPIOOutput(DISPLAY_RST_PORT, DISPLAY_RST_PIN);
+    MAP_GPIOPinTypeGPIOOutput(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN);
+    MAP_GPIOPinTypeGPIOOutput(DISPLAY_D_C_PORT, DISPLAY_D_C_PIN);
 
     //
     // Reset pin high, power off
     //
-    ROM_GPIOPinWrite(DISPLAY_RST_PORT, DISPLAY_RST_PIN, DISPLAY_RST_PIN);
-    ROM_GPIOPinWrite(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN, 0);
-    ROM_SysCtlDelay(1000);
+    MAP_GPIOPinWrite(DISPLAY_RST_PORT, DISPLAY_RST_PIN, DISPLAY_RST_PIN);
+    MAP_GPIOPinWrite(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN, 0);
+    MAP_SysCtlDelay(1000);
 
     //
     // Drive the reset pin low while we do other stuff
     //
-    ROM_GPIOPinWrite(DISPLAY_RST_PORT, DISPLAY_RST_PIN, 0);
+    MAP_GPIOPinWrite(DISPLAY_RST_PORT, DISPLAY_RST_PIN, 0);
 
     //
     // Configure the SSI port
     //
-    ROM_SSIDisable(DISPLAY_SSI_BASE);
-    ROM_SSIConfigSetExpClk(DISPLAY_SSI_BASE, ROM_SysCtlClockGet(),
+    MAP_SSIDisable(DISPLAY_SSI_BASE);
+    MAP_SSIConfigSetExpClk(DISPLAY_SSI_BASE, MAP_SysCtlClockGet(),
                            SSI_FRF_MOTO_MODE_0, SSI_MODE_MASTER,
                            DISPLAY_SSI_CLOCK, 8);
-    ROM_SSIEnable(DISPLAY_SSI_BASE);
+    MAP_SSIEnable(DISPLAY_SSI_BASE);
 
     //
     // Take the display out of reset
     //
-    ROM_SysCtlDelay(1000);
-    ROM_GPIOPinWrite(DISPLAY_RST_PORT, DISPLAY_RST_PIN, DISPLAY_RST_PIN);
-    ROM_SysCtlDelay(1000);
+    MAP_SysCtlDelay(1000);
+    MAP_GPIOPinWrite(DISPLAY_RST_PORT, DISPLAY_RST_PIN, DISPLAY_RST_PIN);
+    MAP_SysCtlDelay(1000);
 
     //
     // Enable display power supply
     //
-    ROM_GPIOPinWrite(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN, DISPLAY_ENV_PIN);
-    ROM_SysCtlDelay(1000);
+    MAP_GPIOPinWrite(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN, DISPLAY_ENV_PIN);
+    MAP_SysCtlDelay(1000);
 
     //
     // Send the initial configuration command bytes to the display
     //
-    ST7735R128x128x18WriteCommand(g_ui8DisplayInitCommands,
-                                   sizeof(g_ui8DisplayInitCommands));
-    ROM_SysCtlDelay(1000);
+    uint8_t numCommands, numArgs;
+    uint16_t ms;
+
+    // Number of commands to follow
+    const uint8_t* addr = g_ui8DisplayInitCommands;
+    numCommands = *addr;
+    addr++;
+
+    while (numCommands--)
+    {
+        //   Read, issue command
+        ST7735R128x128x18WriteCommand(addr, 1);
+        addr++;
+
+        //   Number of args to follow
+        numArgs = *addr;
+        addr++;
+
+        //   If hibit set, delay follows args
+        ms = numArgs & DELAY;
+        //   Mask out delay bit
+        numArgs &= ~DELAY;
+
+        while (numArgs--)
+        {
+            //   Read, issue argument
+            ST7735R128x128x18WriteData(addr, 1);
+            addr++;
+        }
+
+        if (ms)
+        {
+            // Read post-command delay time (ms)
+            ms = *addr;
+            addr++;
+
+            if (ms == 255)
+                ms = 500;
+            // If 255, delay for 500 ms
+            MAP_SysCtlDelay(MAP_SysCtlClockGet() / 1000 / 3 * ms);
+        }
+    }
+
+    MAP_SysCtlDelay(1000);
 
     //
     // Fill the entire display with a black rectangle, to clear it.

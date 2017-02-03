@@ -21,11 +21,12 @@ __error__(char *pcFilename, uint32_t ui32Line)
 }
 #endif
 
+
 #include "../Display/charter_module.h"
 
 int main(void) {
 	
     CharterTest();
 
-	return 0;
+    return (0);
 }
