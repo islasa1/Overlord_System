@@ -13,7 +13,7 @@
 
 //*****************************************************************************
 //
-//! \addtogroup display_api
+//! \addtogroup ST7735 Display Driver
 //! @{
 //
 //*****************************************************************************
@@ -229,22 +229,22 @@ static uint8_t g_ui8DisplayInitCommands[] =
 
 //*****************************************************************************
 //
-// Translates a 24-bit RGB color to a display driver-specific color.
+//! Translates a 24-bit RGB color to a display driver-specific color.
 //
-// \param c is the 24-bit RGB color.  The least-significant byte is the blue
-// channel, the next byte is the green channel, and the third byte is the red
-// channel.
-//
-// This macro translates a 24-bit RGB color into a value that can be written
-// into the display's frame buffer in order to reproduce that color, or the
-// closest possible approximation of that color.
-//
-// \return Returns the display-driver specific color.
-//
-// 24-bit format: XXXX XXXX RRRR RRRR GGGG GGGG BBBB BBBB
-// 18-bit format: ---- ---- ---- --RR RRRR GGGG GGBB BBBB
-// 16-bit format: ---- ---- ---- ---- RRRR RGGG GGGB BBBB
-//  8-bit format: ---- ---- ---- ---- ---- ---- RRRG GGBB
+//! \param c is the 24-bit RGB color.  The least-significant byte is the blue
+//! channel, the next byte is the green channel, and the third byte is the red
+//! channel.
+//!
+//! This macro translates a 24-bit RGB color into a value that can be written
+//! into the display's frame buffer in order to reproduce that color, or the
+//! closest possible approximation of that color.
+//!
+//! \return Returns the display-driver specific color.
+//!
+//! 24-bit format: XXXX XXXX RRRR RRRR GGGG GGGG BBBB BBBB\n
+//! 18-bit format: ---- ---- ---- --RR RRRR GGGG GGBB BBBB\n
+//! 16-bit format: ---- ---- ---- ---- RRRR RGGG GGGB BBBB\n
+//!  8-bit format: ---- ---- ---- ---- ---- ---- RRRG GGBB\n
 //
 //
 //*****************************************************************************
@@ -785,8 +785,7 @@ ST7735R128x128x18Flush(void *pvDisplayData)
 
 //*****************************************************************************
 //
-//! The display structure that describes the driver for the Crystalfontz
-//! CFAL9664-F-B1 OLED panel with SSD 1332 controller.
+//! The display structure that describes the driver for the ST7735 TFT Display.
 //
 //*****************************************************************************
 const tDisplay g_sST7735R128x128x18 =
@@ -808,8 +807,7 @@ const tDisplay g_sST7735R128x128x18 =
 //
 //! Initializes the display driver.
 //!
-//! This function initializes the SSD1332 display controller on the panel,
-//! preparing it to display data.
+//! This function initializes the ST7735 display, preparing it to display data.
 //!
 //! \return None.
 //
