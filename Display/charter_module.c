@@ -7,6 +7,7 @@
  */
 
 #include "charter_module.h"
+#include "neural.h"
 
 // Display defines
 #define X_MAX   (GrContextDpyWidthGet(&g_sContext) - 1)
@@ -53,6 +54,13 @@ void CharterTest(void)
     sRect.i16XMax = X_MAX;
     sRect.i16YMin = Y_MAX;
 
-    GrContextForegroundSet(&g_sContext, ClrGreen);
+    GrContextForegroundSet(&g_sContext, ClrRed);
     GrRectFill(&g_sContext, &sRect);
+    uint32_t index;
+    while (1) {
+        for (index = 0; g_pui8Neural[index] != 0x0; index++) {
+            GrImageDraw(&g_sContext, g_pui8Neural[index], 0, 0);
+            SysCtlDelay(SysCtlClockGet() * 0.1 / 3.0);
+        }
+    }
 }

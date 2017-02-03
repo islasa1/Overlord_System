@@ -159,7 +159,7 @@
 // it is initialized.
 //
 //*****************************************************************************
-static uint8_t g_ui8DisplayInitCommands[] =
+static uint8_t g_ui8DisplayInitCommands0[] =
 {
     // Init for 7735R, part 1 (red or green tab)
     15,                       // 15 commands in list:
@@ -196,8 +196,11 @@ static uint8_t g_ui8DisplayInitCommands[] =
     ST7735_MADCTL , 1      ,  // 14: Memory access control (directions), 1 arg:
       0xC8,                   //     row addr/col addr, bottom to top refresh
     ST7735_COLMOD , 1      ,  // 15: set color mode, 1 arg, no delay:
-      ST7735_18BIT,
+      ST7735_18BIT
+};
 
+static uint8_t g_ui8DisplayInitCommands1[] =
+{
     // ST7753R 128x128 uses only green tab
                               // Init for 7735R, part 2 (green 1.44 tab)
     2,                        //  2 commands in list:
@@ -206,8 +209,11 @@ static uint8_t g_ui8DisplayInitCommands[] =
       0x00, 0x7F,             //     XEND = 127
     ST7735_RASET  , 4      ,  //  2: Row addr set, 4 args, no delay:
       0x00, 0x00,             //     XSTART = 0
-      0x00, 0x7F,             //     XEND = 127
+      0x00, 0x7F              //     XEND = 127
 
+};
+static uint8_t g_ui8DisplayInitCommands2[] =
+{
                               // Init for 7735R, part 3 (red or green tab)
     4,                        //  4 commands in list:
     ST7735_GMCTRP1, 16      , //  1: Magical unicorn dust, 16 args, no delay:
@@ -265,6 +271,7 @@ static uint8_t g_ui8DisplayInitCommands[] =
 #define ST7735R18BitColorPack(c) (((c & 0x3f000) << 14)  | \
                                   ((c & 0x00fc0) << 12)  | \
                                   ((c & 0x0003f) << 10)) & 0xfcfcfc00
+
 
 //*****************************************************************************
 //
@@ -348,9 +355,57 @@ ST7735R128x128x18WriteData(const uint8_t *pi8Data, uint32_t ui32Count)
     }
 }
 
+static void commandList(const uint8_t *addr)
+{
+    //
+    // Send the initial configuration command bytes to the display
+    //
+    uint8_t numCommands, numArgs;
+    uint16_t ms;
+
+    // Number of commands to follow
+    numCommands = *addr;
+    addr++;
+
+    while (numCommands--)
+    {
+        //   Read, issue command
+        ST7735R128x128x18WriteCommand(addr, 1);
+        addr++;
+
+        //   Number of args to follow
+        numArgs = *addr;
+        addr++;
+
+        //   If hibit set, delay follows args
+        ms = numArgs & DELAY;
+        //   Mask out delay bit
+        numArgs &= ~DELAY;
+
+        while (numArgs--)
+        {
+            //   Read, issue argument
+            ST7735R128x128x18WriteData(addr, 1);
+            addr++;
+        }
+
+        if (ms)
+        {
+            // Read post-command delay time (ms)
+            ms = *addr;
+            addr++;
+
+            if (ms == 255)
+                ms = 500;
+            // If 255, delay for 500 ms
+            MAP_SysCtlDelay(MAP_SysCtlClockGet() / 1000 * ms);
+        }
+    }
+}
+
 //! FIXME
 static void
-ST7735R128x128x18SetAddrWindow(long xStart, long yStart, long xEnd, long yEnd)
+ST7735R128x128x18SetAddrWindow(uint16_t xStart, uint16_t yStart, uint16_t xEnd, uint16_t yEnd)
 {
     uint8_t ui8Cmd[8];
     uint8_t ui8Data[8];
@@ -416,7 +471,7 @@ ST7735R128x128x18PixelDraw(void *pvDisplayData, int32_t i32X, int32_t i32Y,
 
     ST7735R128x128x18SetAddrWindow(i32X, i32Y, i32X + 1, i32Y + 1);
 
-    ui32PackedColor = ST7735R18BitColorPack(ulValue);
+    ui32PackedColor = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ulValue));
     ST7735R128x128x18WriteData((uint8_t*) &ui32PackedColor, 3);
 }
 
@@ -455,7 +510,7 @@ ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i3
     uint32_t ui32Byte;
     uint32_t ui32Color;
 
-    ST7735R128x128x18SetAddrWindow(i32X, i32Y, DISPLAY_MAX_X, DISPLAY_MAX_Y);
+    ST7735R128x128x18SetAddrWindow(i32X, i32Y, DISPLAY_MAX_X + 1, DISPLAY_MAX_Y + 1);
 
     //
     // Determine how to interpret the pixel data based on the number of bits
@@ -634,9 +689,9 @@ ST7735R128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, in
 {
     uint8_t ui8LineBuf[16 * ST7735_BYTES_PER_PIXEL];
     unsigned int uIdx;
-    uint32_t ui32PackedColor = ST7735R18BitColorPack(ui32Value);
+    uint32_t ui32PackedColor =  ST7735R18BitColorPack(ui32Value);
 
-    ST7735R128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X, i32Y + 1);
+    ST7735R128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X + 1, i32Y + 1);
 
     //
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
@@ -651,10 +706,13 @@ ST7735R128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, in
 
     uIdx = (i32X1 < i32X2) ? (i32X2 - i32X1) : (i32X1 - i32X2);
     uIdx += 1;
+    uIdx *= 3;
+    // uIdx is now number of bytes instead of number of pixels
+    // Send at 12 bytes at a time (3 pixels)
     while(uIdx)
     {
-        ST7735R128x128x18WriteData(ui8LineBuf, (uIdx < 16) ? uIdx : 16);
-        uIdx -= (uIdx < 16) ? uIdx : 16;
+        ST7735R128x128x18WriteData(ui8LineBuf, (uIdx < 12) ? uIdx : 12);
+        uIdx -= (uIdx < 12) ? uIdx : 12;
     }
 }
 
@@ -681,7 +739,7 @@ ST7735R128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, int
 {
     uint8_t ui8LineBuf[16 * ST7735_BYTES_PER_PIXEL];
     unsigned int uIdx;
-    uint32_t ui32PackedColor = ST7735R18BitColorPack(ui32Value);
+    uint32_t ui32PackedColor =  ST7735R18BitColorPack(ui32Value);
 
     ST7735R128x128x18SetAddrWindow(i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X + 1, DISPLAY_MAX_Y);
 
@@ -698,10 +756,13 @@ ST7735R128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, int
 
     uIdx = (i32Y1 < i32Y2) ? (i32Y2 - i32Y1) : (i32Y1 - i32Y2);
     uIdx += 1;
+    uIdx *= 3;
+    // uIdx is now number of bytes instead of number of pixels
+    // Send at 12 bytes at a time (3 pixels)
     while(uIdx)
     {
-        ST7735R128x128x18WriteData(ui8LineBuf, (uIdx < 16) ? uIdx : 16);
-        uIdx -= (uIdx < 16) ? uIdx : 16;
+        ST7735R128x128x18WriteData(ui8LineBuf, (uIdx < 12) ? uIdx : 12);
+        uIdx -= (uIdx < 12) ? uIdx : 12;
     }
 }
 
@@ -814,10 +875,8 @@ const tDisplay g_sST7735R128x128x18 =
 //
 //*****************************************************************************
 void
-ST7735R128x128x18Init(void)
+ST7735R128x128x18PeriphInit(void)
 {
-    tRectangle sRect;
-
     //
     // Enable the peripherals used by this driver
     //
@@ -880,53 +939,29 @@ ST7735R128x128x18Init(void)
     MAP_GPIOPinWrite(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN, DISPLAY_ENV_PIN);
     MAP_SysCtlDelay(1000);
 
-    //
-    // Send the initial configuration command bytes to the display
-    //
-    uint8_t numCommands, numArgs;
-    uint16_t ms;
-
-    // Number of commands to follow
-    const uint8_t* addr = g_ui8DisplayInitCommands;
-    numCommands = *addr;
-    addr++;
-
-    while (numCommands--)
-    {
-        //   Read, issue command
-        ST7735R128x128x18WriteCommand(addr, 1);
-        addr++;
-
-        //   Number of args to follow
-        numArgs = *addr;
-        addr++;
-
-        //   If hibit set, delay follows args
-        ms = numArgs & DELAY;
-        //   Mask out delay bit
-        numArgs &= ~DELAY;
-
-        while (numArgs--)
-        {
-            //   Read, issue argument
-            ST7735R128x128x18WriteData(addr, 1);
-            addr++;
-        }
-
-        if (ms)
-        {
-            // Read post-command delay time (ms)
-            ms = *addr;
-            addr++;
-
-            if (ms == 255)
-                ms = 500;
-            // If 255, delay for 500 ms
-            MAP_SysCtlDelay(MAP_SysCtlClockGet() / 1000 / 3 * ms);
-        }
-    }
 
     MAP_SysCtlDelay(1000);
+
+}
+
+//*****************************************************************************
+//
+//! Initializes the software for the display driver.
+//!
+//! This function initializes the ST7735 display, preparing it to display data.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void
+ST7735R128x128x18SWInit(void)
+{
+    tRectangle sRect;
+
+    commandList(g_ui8DisplayInitCommands0);
+    commandList(g_ui8DisplayInitCommands1);
+    commandList(g_ui8DisplayInitCommands2);
+
 
     //
     // Fill the entire display with a black rectangle, to clear it.
@@ -935,8 +970,25 @@ ST7735R128x128x18Init(void)
     sRect.i16XMax = DISPLAY_MAX_X;
     sRect.i16YMin = 0;
     sRect.i16YMax = DISPLAY_MAX_Y;
-    ST7735R128x128x18RectFill(0, &sRect, 0);
+    ST7735R128x128x18RectFill(0, &sRect, ClrBlack);
 }
+
+//*****************************************************************************
+//
+//! Initializes the entire display driver.
+//!
+//! This function initializes the ST7735 display, preparing it to display data.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void
+ST7735R128x128x18Init(void)
+{
+    ST7735R128x128x18PeriphInit();
+    ST7735R128x128x18SWInit();
+}
+
 
 //*****************************************************************************
 //
