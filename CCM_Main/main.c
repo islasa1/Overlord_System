@@ -27,5 +27,5 @@ int main(void) {
 	
     CharterTest();
 
-	return 0;
+	return (0);
 }

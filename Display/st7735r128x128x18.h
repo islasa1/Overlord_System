@@ -14,8 +14,9 @@
 #include "driverlib/gpio.h"
 #include "driverlib/ssi.h"
 #include "driverlib/sysctl.h"
-#include "driverlib/rom.h"
 #include "driverlib/pin_map.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
 #include "grlib/grlib.h"
 
 //*****************************************************************************
