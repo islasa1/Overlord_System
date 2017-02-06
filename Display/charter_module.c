@@ -8,6 +8,7 @@
 
 #include "charter_module.h"
 #include "neural.h"
+#include "AxisLogo128x128.h"
 
 // Display defines
 #define X_MAX   (GrContextDpyWidthGet(&g_sContext) - 1)
@@ -40,7 +41,13 @@ void CharterInit(void)
 
 }
 
-void CharterTest(void)
+void CharterSplashScreen(void)
+{
+    GrImageDraw(&g_sContext, g_pui8AxisLogo, 0, 0);
+    SysCtlDelay(SysCtlClockGet() * 1.5);
+}
+
+void CharterTest_1(void)
 {
     tRectangle sRect;
 
@@ -56,11 +63,19 @@ void CharterTest(void)
 
     GrContextForegroundSet(&g_sContext, ClrRed);
     GrRectFill(&g_sContext, &sRect);
+
+    SysCtlDelay(SysCtlClockGet() * 1.5);
+
+    CharterSplashScreen();
+}
+
+void CharterTest_2(void)
+{
     uint32_t index;
-    while (1) {
-        for (index = 0; g_pui8Neural[index] != 0x0; index++) {
-            GrImageDraw(&g_sContext, g_pui8Neural[index], 0, 0);
-            SysCtlDelay(SysCtlClockGet() * 0.1 / 3.0);
+        while (1) {
+            for (index = 0; g_pui8Neural[index] != 0x0; index++) {
+                GrImageDraw(&g_sContext, g_pui8Neural[index], 0, 0);
+                SysCtlDelay(SysCtlClockGet() * 0.1 / 10.0);
+            }
         }
-    }
 }

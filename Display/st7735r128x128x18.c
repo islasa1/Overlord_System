@@ -389,6 +389,7 @@ static void commandList(const uint8_t *addr)
             addr++;
         }
 
+
         if (ms)
         {
             // Read post-command delay time (ms)
@@ -398,12 +399,11 @@ static void commandList(const uint8_t *addr)
             if (ms == 255)
                 ms = 500;
             // If 255, delay for 500 ms
-            MAP_SysCtlDelay(MAP_SysCtlClockGet() / 1000 * ms);
+            MAP_SysCtlDelay(MAP_SysCtlClockGet() / 100000 * ms);
         }
     }
 }
 
-//! FIXME
 static void
 ST7735R128x128x18SetAddrWindow(uint16_t xStart, uint16_t yStart, uint16_t xEnd, uint16_t yEnd)
 {

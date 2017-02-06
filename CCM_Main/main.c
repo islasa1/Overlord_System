@@ -25,7 +25,7 @@ __error__(char *pcFilename, uint32_t ui32Line)
 
 int main(void) {
 	
-    CharterTest();
+    CharterTest_1();
 
 	return (0);
 }
