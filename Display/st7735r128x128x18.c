@@ -847,7 +847,7 @@ ST7735R128x128x18Flush(void *pvDisplayData)
 //*****************************************************************************
 //
 //! The display structure that describes the driver for the Crystalfontz
-//! CFAL9664-F-B1 OLED panel with SSD 1332 controller.
+//! Adafruit 1.44" TFT LCD Display with ST7735R TFT driver.
 //
 //*****************************************************************************
 const tDisplay g_sST7735R128x128x18 =
@@ -867,9 +867,10 @@ const tDisplay g_sST7735R128x128x18 =
 
 //*****************************************************************************
 //
-//! Initializes the display driver.
+//! Initializes the hardware connections to the display.
 //!
-//! This function initializes the ST7735 display, preparing it to display data.
+//! This function initializes the ST7735 peripherals, preparing the hardware to
+//! display data.
 //!
 //! \return None.
 //
@@ -948,7 +949,8 @@ ST7735R128x128x18PeriphInit(void)
 //
 //! Initializes the software for the display driver.
 //!
-//! This function initializes the ST7735 display, preparing it to display data.
+//! This function initializes the ST7735 display with software command sets
+//! with the appropriate settings, preparing it to display data.
 //!
 //! \return None.
 //

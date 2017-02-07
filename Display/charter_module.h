@@ -20,5 +20,6 @@ extern void CharterInit(void);
 extern void CharterSplashScreen(void);
 extern void CharterTest_1(void);
 extern void CharterTest_2(void);
+extern void CharterTest_3(void);
 
 #endif /* _DISPLAY_CHARTERMODULE_H__ */

@@ -23,9 +23,18 @@ __error__(char *pcFilename, uint32_t ui32Line)
 
 #include "../Display/charter_module.h"
 
-int main(void) {
-	
-    CharterTest_1();
+int main(void)
+{
+    //
+    // Enable lazy stacking for interrupt handlers.  This allows floating-point
+    // instructions to be used within interrupt handlers, but at the expense of
+    // extra stack usage.
+    //
+    ROM_FPULazyStackingEnable();
+
+
+
+    CharterTest_3();
 
 	return (0);
 }
