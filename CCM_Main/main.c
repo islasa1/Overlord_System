@@ -32,9 +32,7 @@ int main(void)
     //
     ROM_FPULazyStackingEnable();
 
-
-
-    CharterTest_3();
+    CharterTest_1();
 
 	return (0);
 }

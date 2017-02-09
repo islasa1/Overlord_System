@@ -6,17 +6,74 @@
  *      Author: Anthony
  */
 
+#include <stdint.h>
+#include <math.h>
+#include "utils/ustdlib.h"
+#include "utils/sine.h"
 #include "charter_module.h"
 #include "neural.h"
 #include "AxisLogo128x128.h"
 #include "BatteryIcon.h"
 
 // Display defines
-#define X_MAX   (GrContextDpyWidthGet(&g_sContext) - 1)
-#define Y_MAX   (GrContextDpyHeightGet(&g_sContext) - 1)
+#define X_MAX               (GrContextDpyWidthGet(&g_sContext) - 1)
+#define Y_MAX               (GrContextDpyHeightGet(&g_sContext) - 1)
+
+#define HEADING_ARROW_WIDTH 5
+#define HEADING_LENGTH      38
+#define HEADING_CENTER_X    (X_MAX / 2)
+#define HEADING_CENTER_Y    (Y_MAX / 2)
+
+#define HEADING_XOFFSET(radius, theta)      (int8_t) ((float)(cosf(theta) * \
+                                            (radius)));
+#define HEADING_YOFFSET(radius, theta)      (int8_t) ((float)(sinf(theta) * \
+                                            (radius)));
+
+#ifndef M_PI
+#define M_PI            3.14159265358979323846
+#endif
+#define SENSORS_DEGREES_TO_RADIANS(d)           ((d) * M_PI / 180.0)           /**< Degrees to Radians */
+#define SENSORS_RADIANS_TO_DEGREES(r)           ((r) * 180.0 / M_PI)           /**< Radians to Degrees */
 
 tContext g_sContext;
-tRectangle g_sBattRect;
+tRectangle g_sBattImageRect;
+tRectangle g_sBattPercentRect;
+
+typedef struct
+{
+    //
+    //! The farthest X offset from the heading center
+    //
+    int8_t i8XHiOffset;
+
+    //
+    //! The farthest Y offset from the heading center
+    //
+    int8_t i8YHiOffset;
+
+
+    //
+    //! The closest X offset (\em radius - 3)
+    //
+    int8_t i8XBaseOffset;
+
+    //
+    //! The closest Y offset (\em radius - 3)
+    //
+    int8_t i8YBaseOffset;
+
+    //
+    //! The X offset from the base level to draw arrow line orthogonal
+    //
+    int8_t i8XBaseArrowOffset;
+
+    //
+    //! The Y offset from the base level to draw arrow line orthogonal
+    //
+    int8_t i8YBaseArrowOffset;
+
+
+} tHeadingPosition;
 
 //*****************************************************************************
 //! Initialize the module
@@ -54,14 +111,29 @@ void CharterInit(void)
     //
 
     // Image draw corner plus 1 pixel offset
-    g_sBattRect.i16YMin = 5 + BATT_ICON_YMIN_OFFSET;
+    g_sBattImageRect.i16YMin = 5 + BATT_ICON_YMIN_OFFSET;
 
     // Image draw corner plus image height minus 1 pixel offset
-    g_sBattRect.i16YMax = 5 + g_pui8BatteryIcon[3] - BATT_ICON_YMAX_OFFSET;
+    g_sBattImageRect.i16YMax = 5 + g_pui8BatteryIcon[3] - BATT_ICON_YMAX_OFFSET;
 
     // Image draw corner plus image width minus 1 pixel offset
-    g_sBattRect.i16XMax = X_MAX - 20 + g_pui8BatteryIcon[1] -
+    g_sBattImageRect.i16XMax = X_MAX - 20 + g_pui8BatteryIcon[1] -
             BATT_ICON_XMAX_OFFSET;
+
+    //
+    // Battery text rectangle to clear it
+    //
+    g_sBattPercentRect.i16XMax = X_MAX - 22;
+    g_sBattPercentRect.i16XMin = X_MAX - 45;
+    g_sBattPercentRect.i16YMin = 0;
+    g_sBattPercentRect.i16YMax = 12;
+
+    //
+    // Change foreground for white text.
+    //
+    GrContextForegroundSet(&g_sContext, ClrWhite);
+
+    GrContextFontSet(&g_sContext, g_psFontFixed6x8);
 }
 
 //*****************************************************************************
@@ -73,7 +145,7 @@ void CharterInit(void)
 //! \return None.
 //
 //*****************************************************************************
-void CharterClrScreen(void)
+void CharterClrScreen(tContext *psContext)
 {
     tRectangle sRect;
 
@@ -85,8 +157,10 @@ void CharterClrScreen(void)
     sRect.i16XMax = X_MAX;
     sRect.i16YMax = Y_MAX;
 
-    GrContextForegroundSet(&g_sContext, ClrBlack);
-    GrRectFill(&g_sContext, &sRect);
+    uint32_t ui32OrigColor = psContext->ui32Foreground;
+    GrContextForegroundSet(psContext, ClrBlack);
+    GrRectFill(psContext, &sRect);
+    psContext->ui32Foreground = ui32OrigColor;
 }
 
 //*****************************************************************************
@@ -106,10 +180,10 @@ void CharterSplashScreen(void)
 }
 
 //*****************************************************************************
-//! Display battery bar
+//! Display battery bar.
 //!
 //! \param percentage is the integer value of the current percentage to display
-//! (0 - 100).
+//! [0 - 100].
 //!
 //! This function will draw the given percentage with a battery symbol overlay
 //! onto the display screen
@@ -119,9 +193,20 @@ void CharterSplashScreen(void)
 //*****************************************************************************
 void CharterShowBattPercent(uint8_t percentage)
 {
+    char percentStr[6];
+
+    //
+    // Put the percent string
+    //
+    usprintf(percentStr, "%u%%", percentage);
+    GrContextForegroundSet(&g_sContext, ClrBlack);
+    GrRectFill(&g_sContext, &g_sBattPercentRect);
+
     GrContextBackgroundSet(&g_sContext, ClrBlack);
     GrContextForegroundSet(&g_sContext, ClrWhite);
     GrImageDraw(&g_sContext, g_pui8BatteryIcon, X_MAX - 20, 5);
+
+    GrStringDrawCentered(&g_sContext, (const char*)percentStr, -1, X_MAX - 30, 8, false);
 
     uint32_t ui32Status;
 
@@ -139,11 +224,119 @@ void CharterShowBattPercent(uint8_t percentage)
     }
 
     GrContextForegroundSet(&g_sContext, ui32Status);
-    g_sBattRect.i16XMin = g_sBattRect.i16XMax -
+    g_sBattImageRect.i16XMin = g_sBattImageRect.i16XMax -
             (int16_t)((float) percentage / 100 * BATT_ICON_DRAW_WIDTH);
-    GrRectFill(&g_sContext, &g_sBattRect);
+    GrRectFill(&g_sContext, &g_sBattImageRect);
+
+    //
+    // Reset the foreground color
+    //
+    GrContextForegroundSet(&g_sContext, ClrWhite);
 }
 
+
+void CharterDrawHeadingArrow(tContext *psContext, tHeadingPosition *psHeading)
+{
+    //
+    // Lines
+    //
+    GrLineDraw(psContext, HEADING_CENTER_X + psHeading->i8XHiOffset,
+                          HEADING_CENTER_Y + psHeading->i8YHiOffset,
+                          HEADING_CENTER_X + psHeading->i8XBaseOffset +
+                              psHeading->i8XBaseArrowOffset,
+                          HEADING_CENTER_Y + psHeading->i8YBaseOffset +
+                              psHeading->i8YBaseArrowOffset);
+
+    GrLineDraw(psContext, HEADING_CENTER_X + psHeading->i8XHiOffset,
+                          HEADING_CENTER_Y + psHeading->i8YHiOffset,
+                          HEADING_CENTER_X + psHeading->i8XBaseOffset -
+                              psHeading->i8XBaseArrowOffset,
+                          HEADING_CENTER_Y + psHeading->i8YBaseOffset -
+                              psHeading->i8YBaseArrowOffset);
+
+    GrLineDraw(psContext, HEADING_CENTER_X + psHeading->i8XBaseOffset -
+                              psHeading->i8XBaseArrowOffset,
+                          HEADING_CENTER_Y + psHeading->i8YBaseOffset -
+                              psHeading->i8YBaseArrowOffset,
+                          HEADING_CENTER_X + psHeading->i8XBaseOffset +
+                              psHeading->i8XBaseArrowOffset,
+                          HEADING_CENTER_Y + psHeading->i8YBaseOffset +
+                              psHeading->i8YBaseArrowOffset);
+}
+
+void CharterDrawHeadingLine(tContext *psContext, tHeadingPosition *psHeading)
+{
+    //
+    // Main Line
+    //
+    GrLineDraw(psContext, HEADING_CENTER_X - psHeading->i8XHiOffset,
+                          HEADING_CENTER_Y - psHeading->i8YHiOffset,
+                          HEADING_CENTER_X + psHeading->i8XHiOffset,
+                          HEADING_CENTER_Y + psHeading->i8YHiOffset);
+}
+
+//*****************************************************************************
+//! Display angle to the screen.
+//!
+//! \param angle is a float value in degrees [0 - 360)
+//!
+//! This function will draw an angle heading on the screen \em relative \em to
+//! the X-axis 0° from the display orientation.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void CharterDrawHeading(tContext *psContext, float angle)
+{
+    static tHeadingPosition sPrevHeading;
+    tHeadingPosition sHeading;
+
+    angle = SENSORS_DEGREES_TO_RADIANS(angle);
+
+    //
+    // Find tip location
+    //
+    sHeading.i8XHiOffset = HEADING_XOFFSET(HEADING_LENGTH, angle);
+    sHeading.i8YHiOffset = HEADING_YOFFSET(HEADING_LENGTH, angle);
+
+    //
+    // Last position
+    //
+    sHeading.i8XBaseOffset = HEADING_XOFFSET(HEADING_LENGTH - 7, angle);
+    sHeading.i8YBaseOffset = HEADING_YOFFSET(HEADING_LENGTH - 7, angle);
+
+
+    //
+    // Calculate arrow offsets
+    //
+    sHeading.i8XBaseArrowOffset = HEADING_XOFFSET(HEADING_ARROW_WIDTH,
+                                                 (angle + M_PI / 2));
+    sHeading.i8YBaseArrowOffset = HEADING_YOFFSET(HEADING_ARROW_WIDTH,
+                                                 (angle + M_PI / 2));
+
+    //
+    // Save the previous foreground
+    //
+    uint32_t ui32OrigColor = psContext->ui32Foreground;
+
+    //
+    // Destroy previous heading
+    //
+    GrContextForegroundSet(psContext, ClrBlack);
+    CharterDrawHeadingArrow(psContext, &sPrevHeading);
+    CharterDrawHeadingLine(psContext, &sPrevHeading);
+
+    //
+    // Draw new heading in original color
+    //
+    psContext->ui32Foreground = ui32OrigColor;
+    CharterDrawHeadingArrow(psContext, &sHeading);
+    CharterDrawHeadingLine(psContext, &sHeading);
+    //
+    // Save previous state
+    //
+    sPrevHeading = sHeading;
+}
 
 //*****************************************************************************
 //! Test 1 for the Charter Module
@@ -169,18 +362,20 @@ void CharterTest_1(void)
     sRect.i16XMax = X_MAX;
     sRect.i16YMax = Y_MAX;
 
-    GrContextForegroundSet(&g_sContext, ClrRed);
+    GrContextForegroundSet(&g_sContext, ClrWhite);
     GrRectFill(&g_sContext, &sRect);
 
-    SysCtlDelay(SysCtlClockGet() * 1.5);
+    SysCtlDelay(SysCtlClockGet() / 2 / 3);
 
     CharterSplashScreen();
-    CharterClrScreen();
+
+    CharterClrScreen(&g_sContext);
 
     uint8_t percent = 0;
     while(1)
     {
         CharterShowBattPercent(percent);
+        CharterDrawHeading(&g_sContext, percent * 360 / 100);
         SysCtlDelay(SysCtlClockGet() * 0.1);
         percent += 5;
         percent %= 100;

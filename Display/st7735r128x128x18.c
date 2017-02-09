@@ -26,7 +26,7 @@
 //
 //*****************************************************************************
 #define DISPLAY_COL_START 1
-#define DISPLAY_ROW_START 2
+#define DISPLAY_ROW_START 1
 #define DISPLAY_MAX_X     128
 #define DISPLAY_MAX_Y     128
 
@@ -465,14 +465,18 @@ ST7735R128x128x18SetAddrWindow(uint16_t xStart, uint16_t yStart, uint16_t xEnd, 
 //*****************************************************************************
 static void
 ST7735R128x128x18PixelDraw(void *pvDisplayData, int32_t i32X, int32_t i32Y,
-                            uint32_t ulValue)
+                            uint32_t ui32Value)
 {
     uint32_t ui32PackedColor;
+    uint8_t ui8ColorSend[3];
+    ui32PackedColor = ST7735R18BitColorPack(ui32Value);
 
-    ST7735R128x128x18SetAddrWindow(i32X, i32Y, i32X + 1, i32Y + 1);
+    ui8ColorSend[0] = (ui32PackedColor >> 24) & 0x000000ff;
+    ui8ColorSend[1] = (ui32PackedColor >> 16) & 0x000000ff;
+    ui8ColorSend[2] = (ui32PackedColor >> 8) & 0x000000ff;
 
-    ui32PackedColor = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ulValue));
-    ST7735R128x128x18WriteData((uint8_t*) &ui32PackedColor, 3);
+    ST7735R128x128x18SetAddrWindow(i32X, i32Y, i32X, i32Y);
+    ST7735R128x128x18WriteData(ui8ColorSend, 3);
 }
 
 //*****************************************************************************
@@ -508,9 +512,10 @@ ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i3
                                     const uint8_t *pui8Palette)
 {
     uint32_t ui32Byte;
-    uint32_t ui32Color;
+    uint32_t ui32PackedColor;
+    uint8_t ui8ColorSend[3];
 
-    ST7735R128x128x18SetAddrWindow(i32X, i32Y, DISPLAY_MAX_X + 1, DISPLAY_MAX_Y + 1);
+    ST7735R128x128x18SetAddrWindow(i32X, i32Y, DISPLAY_MAX_X, DISPLAY_MAX_Y);
 
     //
     // Determine how to interpret the pixel data based on the number of bits
@@ -541,8 +546,11 @@ ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i3
                     //
                     // Draw this pixel in the appropriate color.
                     //
-                    ui32Color = ST7735R18BitColorPack(((uint32_t *)pui8Palette)[(ui32Byte >> (7 - i32X0)) & 1]); // retrieve already translated color and pack it
-                    ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                    ui32PackedColor = ST7735R18BitColorPack(((uint32_t *)pui8Palette)[(ui32Byte >> (7 - i32X0)) & 1]); // retrieve already translated color and pack it
+                    ui8ColorSend[0] = (ui32PackedColor >> 24) & 0x000000ff;
+                    ui8ColorSend[1] = (ui32PackedColor >> 16) & 0x000000ff;
+                    ui8ColorSend[2] = (ui32PackedColor >> 8) & 0x000000ff;
+                    ST7735R128x128x18WriteData(ui8ColorSend, 3);
                 }
 
                 //
@@ -576,8 +584,6 @@ ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i3
             case 0:
                 while(i32Count)
                 {
-                    uint32_t ui32Color;
-
                     //
                     // Get the upper nibble of the next byte of pixel data
                     // and extract the corresponding entry from the
@@ -590,8 +596,11 @@ ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i3
                     // Translate this palette entry and write it to the
                     // screen.
                     //
-                    ui32Color = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-                    ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                    ui32PackedColor = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                    ui8ColorSend[0] = (ui32PackedColor >> 24) & 0x000000ff;
+                    ui8ColorSend[1] = (ui32PackedColor >> 16) & 0x000000ff;
+                    ui8ColorSend[2] = (ui32PackedColor >> 8) & 0x000000ff;
+                    ST7735R128x128x18WriteData(ui8ColorSend, 3);
 
                     //
                     // Decrement the count of pixels to draw.
@@ -616,8 +625,11 @@ ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i3
                 // Translate this palette entry and write it to the
                 // screen.
                 //
-                ui32Color = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-                ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                ui32PackedColor = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                ui8ColorSend[0] = (ui32PackedColor >> 24) & 0x000000ff;
+                ui8ColorSend[1] = (ui32PackedColor >> 16) & 0x000000ff;
+                ui8ColorSend[2] = (ui32PackedColor >> 8) & 0x000000ff;
+                ST7735R128x128x18WriteData(ui8ColorSend, 3);
 
                 //
                 // Decrement the count of pixels to draw.
@@ -654,8 +666,11 @@ ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i3
                 //
                 // Translate this palette entry and write it to the screen.
                 //
-                ui32Color = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
-                ST7735R128x128x18WriteData((uint8_t*) &ui32Color, 3);
+                ui32PackedColor = ST7735R18BitColorPack(DPYCOLORTRANSLATE(ui32Byte));
+                ui8ColorSend[0] = (ui32PackedColor >> 24) & 0x000000ff;
+                ui8ColorSend[1] = (ui32PackedColor >> 16) & 0x000000ff;
+                ui8ColorSend[2] = (ui32PackedColor >> 8) & 0x000000ff;
+                ST7735R128x128x18WriteData(ui8ColorSend, 3);
             }
 
             //
@@ -691,7 +706,7 @@ ST7735R128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, in
     unsigned int uIdx;
     uint32_t ui32PackedColor =  ST7735R18BitColorPack(ui32Value);
 
-    ST7735R128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X + 1, i32Y + 1);
+    ST7735R128x128x18SetAddrWindow(i32X1 < i32X2 ? i32X1 : i32X2, i32Y, DISPLAY_MAX_X, i32Y);
 
     //
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
@@ -734,14 +749,14 @@ ST7735R128x128x18LineDrawH(void *pvDisplayData, int32_t i32X1, int32_t i32X2, in
 //
 //*****************************************************************************
 static void
-ST7735R128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1, int32_t i32Y2,
-                            uint32_t ui32Value)
+ST7735R128x128x18LineDrawV(void *pvDisplayData, int32_t i32X, int32_t i32Y1,
+                           int32_t i32Y2,uint32_t ui32Value)
 {
     uint8_t ui8LineBuf[16 * ST7735_BYTES_PER_PIXEL];
     unsigned int uIdx;
     uint32_t ui32PackedColor =  ST7735R18BitColorPack(ui32Value);
 
-    ST7735R128x128x18SetAddrWindow(i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X + 1, DISPLAY_MAX_Y);
+    ST7735R128x128x18SetAddrWindow(i32X, i32Y1 < i32Y2 ? i32Y1 : i32Y2, i32X, DISPLAY_MAX_Y);
 
     //
     // Use buffer of pixels to draw line, so multiple bytes can be sent at
@@ -791,7 +806,10 @@ ST7735R128x128x18RectFill(void *pvDisplayData, const tRectangle *pRect,
 
     for(uY = pRect->i16YMin; uY <= pRect->i16YMax; uY++)
     {
-        ST7735R128x128x18LineDrawH(0, pRect->i16XMin, pRect->i16XMax, uY, ui32Value);
+        ST7735R128x128x18LineDrawH(0, pRect->i16XMin, pRect->i16XMax, uY,
+
+
+                                   ui32Value);
     }
 }
 
