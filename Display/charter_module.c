@@ -7,27 +7,32 @@
  */
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <math.h>
 #include "utils/ustdlib.h"
 #include "utils/sine.h"
 #include "charter_module.h"
+
+// Icons
 #include "neural.h"
 #include "AxisLogo128x128.h"
 #include "BatteryIcon.h"
+#include "ChargeIcon.h"
 
 // Display defines
 #define X_MAX               (GrContextDpyWidthGet(&g_sContext) - 1)
 #define Y_MAX               (GrContextDpyHeightGet(&g_sContext) - 1)
 
-#define HEADING_ARROW_WIDTH 5
-#define HEADING_LENGTH      38
-#define HEADING_CENTER_X    (X_MAX / 2)
-#define HEADING_CENTER_Y    (Y_MAX / 2)
+#define HEADING_ARROW_HEIGHT    17
+#define HEADING_ARROW_WIDTH     7
+#define HEADING_LENGTH          38
+#define HEADING_CENTER_X        (X_MAX / 2)
+#define HEADING_CENTER_Y        (Y_MAX / 2)
 
 #define HEADING_XOFFSET(radius, theta)      (int8_t) ((float)(cosf(theta) * \
-                                            (radius)));
+                                            (radius)) + 0.5);
 #define HEADING_YOFFSET(radius, theta)      (int8_t) ((float)(sinf(theta) * \
-                                            (radius)));
+                                            (radius)) + 0.5);
 
 #ifndef M_PI
 #define M_PI            3.14159265358979323846
@@ -111,10 +116,10 @@ void CharterInit(void)
     //
 
     // Image draw corner plus 1 pixel offset
-    g_sBattImageRect.i16YMin = 5 + BATT_ICON_YMIN_OFFSET;
+    g_sBattImageRect.i16YMin = 4 + BATT_ICON_YMIN_OFFSET;
 
     // Image draw corner plus image height minus 1 pixel offset
-    g_sBattImageRect.i16YMax = 5 + g_pui8BatteryIcon[3] - BATT_ICON_YMAX_OFFSET;
+    g_sBattImageRect.i16YMax = 4 + g_pui8BatteryIcon[3] - BATT_ICON_YMAX_OFFSET;
 
     // Image draw corner plus image width minus 1 pixel offset
     g_sBattImageRect.i16XMax = X_MAX - 20 + g_pui8BatteryIcon[1] -
@@ -191,7 +196,7 @@ void CharterSplashScreen(void)
 //! \return None.
 //
 //*****************************************************************************
-void CharterShowBattPercent(uint8_t percentage)
+void CharterShowBattPercent(uint8_t percentage, bool isCharging)
 {
     char percentStr[6];
 
@@ -206,17 +211,21 @@ void CharterShowBattPercent(uint8_t percentage)
     GrContextForegroundSet(&g_sContext, ClrWhite);
     GrImageDraw(&g_sContext, g_pui8BatteryIcon, X_MAX - 20, 5);
 
-    GrStringDrawCentered(&g_sContext, (const char*)percentStr, -1, X_MAX - 30, 8, false);
+    GrStringDrawCentered(&g_sContext, (const char*)percentStr, -1, X_MAX - 32, 10, false);
 
     uint32_t ui32Status;
 
-    if(percentage > 65)
+    if(percentage > 85)
     {
         ui32Status = ClrGreen;
     }
+    else if(percentage > 65)
+    {
+        ui32Status = ClrOrange;
+    }
     else if(percentage > 20)
     {
-        ui32Status = ClrYellow;
+        ui32Status = ClrOrangeRed;
     }
     else
     {
@@ -227,6 +236,17 @@ void CharterShowBattPercent(uint8_t percentage)
     g_sBattImageRect.i16XMin = g_sBattImageRect.i16XMax -
             (int16_t)((float) percentage / 100 * BATT_ICON_DRAW_WIDTH);
     GrRectFill(&g_sContext, &g_sBattImageRect);
+
+    if(isCharging)
+    {
+        GrContextBackgroundSet(&g_sContext, ClrBlack);
+        GrContextForegroundSet(&g_sContext, ClrWhite);
+        //
+        // GrTransparentImageDraw color takes index of color from color palette to
+        // set as transparent
+        //
+        GrTransparentImageDraw(&g_sContext, g_pui8BatteryChargeIcon, X_MAX - 20 - 1, 5, 2);
+    }
 
     //
     // Reset the foreground color
@@ -291,7 +311,7 @@ void CharterDrawHeading(tContext *psContext, float angle)
     static tHeadingPosition sPrevHeading;
     tHeadingPosition sHeading;
 
-    angle = SENSORS_DEGREES_TO_RADIANS(angle);
+    angle = -SENSORS_DEGREES_TO_RADIANS(angle);
 
     //
     // Find tip location
@@ -302,17 +322,19 @@ void CharterDrawHeading(tContext *psContext, float angle)
     //
     // Last position
     //
-    sHeading.i8XBaseOffset = HEADING_XOFFSET(HEADING_LENGTH - 7, angle);
-    sHeading.i8YBaseOffset = HEADING_YOFFSET(HEADING_LENGTH - 7, angle);
+    sHeading.i8XBaseOffset = HEADING_XOFFSET(HEADING_LENGTH -
+                                             HEADING_ARROW_HEIGHT, angle);
+    sHeading.i8YBaseOffset = HEADING_YOFFSET(HEADING_LENGTH -
+                                             HEADING_ARROW_HEIGHT, angle);
 
 
     //
     // Calculate arrow offsets
     //
     sHeading.i8XBaseArrowOffset = HEADING_XOFFSET(HEADING_ARROW_WIDTH,
-                                                 (angle + M_PI / 2));
+                                                 (angle + M_PI / 2.0));
     sHeading.i8YBaseArrowOffset = HEADING_YOFFSET(HEADING_ARROW_WIDTH,
-                                                 (angle + M_PI / 2));
+                                                 (angle + M_PI / 2.0));
 
     //
     // Save the previous foreground
@@ -371,14 +393,16 @@ void CharterTest_1(void)
 
     CharterClrScreen(&g_sContext);
 
-    uint8_t percent = 0;
+    float percent = 0;
+    bool charging = false;
     while(1)
     {
-        CharterShowBattPercent(percent);
+        CharterShowBattPercent((uint8_t) percent, charging);
         CharterDrawHeading(&g_sContext, percent * 360 / 100);
-        SysCtlDelay(SysCtlClockGet() * 0.1);
-        percent += 5;
-        percent %= 100;
+        SysCtlDelay(SysCtlClockGet() * 0.05);
+        percent += 2.5;
+        percent = percent > 100 ? percent - 100 : percent;
+        charging = !charging;
     }
 }
 

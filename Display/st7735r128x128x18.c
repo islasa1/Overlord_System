@@ -806,7 +806,7 @@ ST7735R128x128x18RectFill(void *pvDisplayData, const tRectangle *pRect,
 
     for(uY = pRect->i16YMin; uY <= pRect->i16YMax; uY++)
     {
-        ST7735R128x128x18LineDrawH(0, pRect->i16XMin, pRect->i16XMax, uY,
+        ST7735R128x128x18LineDrawH(0, pRect->i16XMin, pRect->i16XMax, uY + 1,
 
 
                                    ui32Value);
@@ -957,10 +957,6 @@ ST7735R128x128x18PeriphInit(void)
     //
     MAP_GPIOPinWrite(DISPLAY_ENV_PORT, DISPLAY_ENV_PIN, DISPLAY_ENV_PIN);
     MAP_SysCtlDelay(1000);
-
-
-    MAP_SysCtlDelay(1000);
-
 }
 
 //*****************************************************************************
