@@ -476,16 +476,16 @@ void CharterTest_1(void)
     OffScreenFlush(&g_sTFTContext);
 
     float percent = 0;
-    bool charging = false;
+    uint8_t charging = 0x01;
     while(1)
     {
-        CharterShowBattPercent(&g_sOffScreenContext, (uint8_t) percent, charging);
+        CharterShowBattPercent(&g_sOffScreenContext, (uint8_t) percent, charging < 0x0f);
         CharterDrawHeading(&g_sOffScreenContext, percent * 360 / 100);
         OffScreenFlush(&g_sTFTContext);
-        SysCtlDelay(SysCtlClockGet() * 0.05);
-        percent += 2.5;
+        SysCtlDelay(SysCtlClockGet() * 0.005);
+        percent += 0.5;
         percent = percent > 100 ? percent - 100 : percent;
-        charging = !charging;
+        charging = (charging <<= 1) == 0 ? 1 : charging;
     }
 }
 

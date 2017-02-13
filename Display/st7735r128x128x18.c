@@ -507,9 +507,9 @@ ST7735R128x128x18PixelDraw(void *pvDisplayData, int32_t i32X, int32_t i32Y,
 //*****************************************************************************
 static void
 ST7735R128x128x18PixelDrawMultiple(void *pvDisplayData, int32_t i32X, int32_t i32Y, int32_t i32X0,
-                                    int32_t i32Count, int32_t i32BPP,
-                                    const uint8_t *pui8Data,
-                                    const uint8_t *pui8Palette)
+                                   int32_t i32Count, int32_t i32BPP,
+                                   const uint8_t *pui8Data,
+                                   const uint8_t *pui8Palette)
 {
     uint32_t ui32Byte;
     uint32_t ui32PackedColor;
