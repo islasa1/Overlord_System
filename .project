@@ -24,4 +24,17 @@
 		<nature>org.eclipse.cdt.core.ccnature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>utils/uartstdio.c</name>
+			<type>1</type>
+			<locationURI>SW_ROOT/utils/uartstdio.c</locationURI>
+		</link>
+	</linkedResources>
+	<variableList>
+		<variable>
+			<name>SW_ROOT</name>
+			<value>file:/C:/ti/TivaWare_C_Series-2.1.3.156</value>
+		</variable>
+	</variableList>
 </projectDescription>
