@@ -1,57 +1,82 @@
-/*
- * mpu9250.c
- *
- *  Created on: Jan 31, 2017
- *      Author: moncadac
- */
+//*****************************************************************************
+//
+// mpu9x50.c - Driver for the MPU9X50 accelerometer, gyroscope, and
+//             magnetometer.
+//
+// Copyright (c) 2013-2016 Texas Instruments Incorporated.  All rights reserved.
+// Software License Agreement
+// 
+// Texas Instruments (TI) is supplying this software for use solely and
+// exclusively on TI's microcontroller products. The software is owned by
+// TI and/or its suppliers, and is protected under applicable copyright
+// laws. You may not combine this software with "viral" open-source
+// software in order to form a larger program.
+// 
+// THIS SOFTWARE IS PROVIDED "AS IS" AND WITH ALL FAULTS.
+// NO WARRANTIES, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT
+// NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE APPLY TO THIS SOFTWARE. TI SHALL NOT, UNDER ANY
+// CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL, OR CONSEQUENTIAL
+// DAMAGES, FOR ANY REASON WHATSOEVER.
+// 
+// This is part of revision 2.1.3.156 of the Tiva Firmware Development Package.
+//
+//*****************************************************************************
 
 #include <stdint.h>
-#include <stdbool.h>
-#include "driverlib/sysctl.h"
-#include "hw_ak8963.h"
-#include "hw_mpu9250.h"
+#include "sensorlib/hw_ak8975.h"
+#include "sensorlib/hw_ak8963.h"
+#include "./hw_mpu9x50.h"
 #include "sensorlib/i2cm_drv.h"
-#include "ak8963.h"
-#include "mpu9250.h"
+#include "sensorlib/ak8975.h"
+#include "sensorlib/ak8963.h"
+#include "./mpu9x50.h"
 
 //*****************************************************************************
 //
-// The states of the MPU9250 state machine.
+//! \addtogroup mpu9x50_api
+//! @{
 //
 //*****************************************************************************
-#define MPU9250_STATE_IDLE      0           // State machine is idle
-#define MPU9250_STATE_LAST      1           // Last step in a sequence
-#define MPU9250_STATE_READ      2           // Waiting for read
-#define MPU9250_STATE_WRITE     3           // Waiting for write
-#define MPU9250_STATE_RMW       4           // Waiting for read modify write
-#define MPU9250_STATE_INIT_RESET                                              \
+
+//*****************************************************************************
+//
+// The states of the MPU9X50 state machine.
+//
+//*****************************************************************************
+#define MPU9X50_STATE_IDLE      0           // State machine is idle
+#define MPU9X50_STATE_LAST      1           // Last step in a sequence
+#define MPU9X50_STATE_READ      2           // Waiting for read
+#define MPU9X50_STATE_WRITE     3           // Waiting for write
+#define MPU9X50_STATE_RMW       4           // Waiting for read modify write
+#define MPU9X50_STATE_INIT_RESET                                              \
                                 5           // reset request issued.
-#define MPU9250_STATE_INIT_RESET_WAIT                                         \
+#define MPU9X50_STATE_INIT_RESET_WAIT                                         \
                                 6           // polling wait for reset complete
-#define MPU9250_STATE_INIT_PWR_MGMT                                           \
+#define MPU9X50_STATE_INIT_PWR_MGMT                                           \
                                 7           // wake up the device.
-#define MPU9250_STATE_INIT_USER_CTRL                                          \
+#define MPU9X50_STATE_INIT_USER_CTRL                                          \
                                 8           // init user control
-#define MPU9250_STATE_INIT_SAMPLE_RATE_CFG                                    \
+#define MPU9X50_STATE_INIT_SAMPLE_RATE_CFG                                    \
                                 9           // init the sensors and filters
-#define MPU9250_STATE_INIT_I2C_SLAVE_DLY                                      \
+#define MPU9X50_STATE_INIT_I2C_SLAVE_DLY                                      \
                                 10          // set the ak8975 polling delay
-#define MPU9250_STATE_INIT_I2C_SLAVE_0                                        \
+#define MPU9X50_STATE_INIT_I2C_SLAVE_0                                        \
                                 11          // config ak8975 automatic read
-#define MPU9250_STATE_RD_DATA   12          // Waiting for data read
+#define MPU9X50_STATE_RD_DATA   12          // Waiting for data read
 
 //*****************************************************************************
 //
-// The factors used to convert the acceleration readings from the MPU9250 into
+// The factors used to convert the acceleration readings from the MPU9X50 into
 // floating point values in meters per second squared.
 //
 // Values are obtained by taking the g conversion factors from the data sheet
 // and multiplying by 9.81 (1 g = 9.81 m/s^2).
 //
 //*****************************************************************************
-static const float g_fMPU9250AccelFactors[] =
+static const float g_fMPU9X50AccelFactors[] =
 {
-    0.0005985482,                           // Range = +/- 2 g (16384 lsb/g)
+    0.0005987549,                           // Range = +/- 2 g (16384 lsb/g)
     0.0011970964,                           // Range = +/- 4 g (8192 lsb/g)
     0.0023941928,                           // Range = +/- 8 g (4096 lsb/g)
     0.0047883855                            // Range = +/- 16 g (2048 lsb/g)
@@ -59,7 +84,7 @@ static const float g_fMPU9250AccelFactors[] =
 
 //*****************************************************************************
 //
-// The factors used to convert the acceleration readings from the MPU9250 into
+// The factors used to convert the acceleration readings from the MPU9X50 into
 // floating point values in radians per second.
 //
 // Values are obtained by taking the degree per second conversion factors
@@ -67,7 +92,7 @@ static const float g_fMPU9250AccelFactors[] =
 // 0.0174532925 radians).
 //
 //*****************************************************************************
-static const float g_fMPU9250GyroFactors[] =
+static const float g_fMPU9X50GyroFactors[] =
 {
     1.3323124e-4,                           // Range = +/- 250 dps (131.0)
     2.6646248e-4,                           // Range = +/- 500 dps (65.5)
@@ -77,44 +102,43 @@ static const float g_fMPU9250GyroFactors[] =
 
 //*****************************************************************************
 //
-// Converting sensor data to tesla (0.6 uT per LSB)
+// Converting sensor data to tesla (0.3 uT per LSB)
 //
 //*****************************************************************************
-#define CONVERT_TO_TESLA        0.0000006
-
+#define CONVERT_TO_TESLA        0.0000003
 
 //*****************************************************************************
 //
 // The callback function that is called when I2C transations to/from the
-// MPU9250 have completed.
+// MPU9X50 have completed.
 //
 //*****************************************************************************
 static void
-MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
+MPU9X50Callback(void *pvCallbackData, uint_fast8_t ui8Status)
 {
-    tMPU9250 *psInst;
+    tMPU9X50 *psInst;
 
     //
-    // Convert the instance data into a pointer to a tMPU9250 structure.
+    // Convert the instance data into a pointer to a tMPU9X50 structure.
     //
     psInst = pvCallbackData;
 
     //
     // If the I2C master driver encountered a failure, force the state machine
     // to the idle state (which will also result in a callback to propagate the
-    // error). Except in the case that we are in the reset wait state and the
-    // error is an address NACK.  This error is handled by the reset wait
+    // error). Except in the case that we are in the reset wait state and the 
+    // error is an address NACK.  This error is handled by the reset wait 
     // state.
     //
-    if((ui8Status != I2CM_STATUS_SUCCESS) &&
+    if((ui8Status != I2CM_STATUS_SUCCESS) && 
        !((ui8Status == I2CM_STATUS_ADDR_NACK) &&
-         (psInst->ui8State == MPU9250_STATE_INIT_RESET_WAIT)))
+         (psInst->ui8State == MPU9X50_STATE_INIT_RESET_WAIT)))
     {
-        psInst->ui8State = MPU9250_STATE_IDLE;
+        psInst->ui8State = MPU9X50_STATE_IDLE;
     }
 
     //
-    // Determine the current state of the MPU9250 state machine.
+    // Determine the current state of the MPU9X50 state machine.
     //
     switch(psInst->ui8State)
     {
@@ -122,15 +146,15 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
         // All states that trivially transition to IDLE, and all unknown
         // states.
         //
-        case MPU9250_STATE_READ:
-        case MPU9250_STATE_LAST:
-        case MPU9250_STATE_RD_DATA:
+        case MPU9X50_STATE_READ:
+        case MPU9X50_STATE_LAST:
+        case MPU9X50_STATE_RD_DATA:
         default:
         {
             //
             // The state machine is now idle.
             //
-            psInst->ui8State = MPU9250_STATE_IDLE;
+            psInst->ui8State = MPU9X50_STATE_IDLE;
 
             //
             // Done.
@@ -139,46 +163,50 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
         }
 
         //
-        // MPU9250 Device reset was issued
+        // MPU9X50 Device reset was issued
         //
-        case MPU9250_STATE_INIT_RESET:
+        case MPU9X50_STATE_INIT_RESET:
         {
             //
             // Issue a read of the status register to confirm reset is done.
             //
-            psInst->uCommand.pui8Buffer[0] = MPU9250_O_PWR_MGMT_1;
+            psInst->uCommand.pui8Buffer[0] = MPU9X50_O_PWR_MGMT_1;
             I2CMRead(psInst->psI2CInst, psInst->ui8Addr,
                      psInst->uCommand.pui8Buffer, 1, psInst->pui8Data, 1,
-                     MPU9250Callback, psInst);
+                     MPU9X50Callback, psInst);
 
-            psInst->ui8State = MPU9250_STATE_INIT_RESET_WAIT;
-            SysCtlDelay(1000);
+            psInst->ui8State = MPU9X50_STATE_INIT_RESET_WAIT;
             break;
         }
 
         //
         // Status register was read, check if reset is done before proceeding.
         //
-        case MPU9250_STATE_INIT_RESET_WAIT:
+        case MPU9X50_STATE_INIT_RESET_WAIT:
         {
             //
             // Check the value read back from status to determine if device
             // is still in reset or if it is ready.  Reset state for this
-            // register is 0x01, which has sleep bit set. Device may also
+            // register is 0x40, which has sleep bit set. Device may also 
             // respond with an address NACK during very early stages of the
-            // its internal reset.  Keep polling until we verify device is
+            // its internal reset.  Keep polling until we verify device is 
             // ready.
             //
-            if((psInst->pui8Data[0] != MPU9250_PWR_MGMT_1_CLKSEL_XG) ||
+#ifdef MPU9X50_IS_9150
+            if((psInst->pui8Data[0] != MPU9X50_PWR_MGMT_1_SLEEP) ||
                (ui8Status == I2CM_STATUS_ADDR_NACK))
+#else
+            if((psInst->pui8Data[0] != MPU9X50_PWR_MGMT_1_CLKSEL_XG) ||
+                           (ui8Status == I2CM_STATUS_ADDR_NACK))
+#endif
             {
                 //
                 // Device still in reset so begin polling this register.
                 //
-                psInst->uCommand.pui8Buffer[0] = MPU9250_O_PWR_MGMT_1;
+                psInst->uCommand.pui8Buffer[0] = MPU9X50_O_PWR_MGMT_1;
                 I2CMRead(psInst->psI2CInst, psInst->ui8Addr,
                          psInst->uCommand.pui8Buffer, 1, psInst->pui8Data, 1,
-                         MPU9250Callback, psInst);
+                         MPU9X50Callback, psInst);
 
                 //
                 // Intentionally stay in this state to create polling effect.
@@ -189,18 +217,17 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
                 //
                 // Device is out of reset, bring it out of sleep mode.
                 //
-                psInst->uCommand.pui8Buffer[0] = MPU9250_O_PWR_MGMT_1;
-                psInst->uCommand.pui8Buffer[1] = MPU9250_PWR_MGMT_1_CLKSEL_XG;
+                psInst->uCommand.pui8Buffer[0] = MPU9X50_O_PWR_MGMT_1;
+                psInst->uCommand.pui8Buffer[1] = MPU9X50_PWR_MGMT_1_CLKSEL_XG;
                 I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
-                          psInst->uCommand.pui8Buffer, 2, MPU9250Callback,
+                          psInst->uCommand.pui8Buffer, 2, MPU9X50Callback,
                           psInst);
 
                 //
                 // Update state to show we are modifing user control and
                 // power management 1 regs.
                 //
-                SysCtlDelay(1000);
-                psInst->ui8State = MPU9250_STATE_INIT_PWR_MGMT;
+                psInst->ui8State = MPU9X50_STATE_INIT_PWR_MGMT;
             }
             break;
         }
@@ -208,20 +235,19 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
         //
         // Reset complete now take device out of sleep mode.
         //
-        case MPU9250_STATE_INIT_PWR_MGMT:
+        case MPU9X50_STATE_INIT_PWR_MGMT:
         {
-            psInst->uCommand.pui8Buffer[0] = MPU9250_O_USER_CTRL;
-            psInst->uCommand.pui8Buffer[1] = 0x00;//MPU9250_USER_CTRL_I2C_MST_EN;
+            psInst->uCommand.pui8Buffer[0] = MPU9X50_O_USER_CTRL;
+            psInst->uCommand.pui8Buffer[1] = MPU9X50_USER_CTRL_I2C_MST_EN;
             I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
-                      psInst->uCommand.pui8Buffer, 2, MPU9250Callback,
+                      psInst->uCommand.pui8Buffer, 2, MPU9X50Callback,
                       psInst);
 
             //
-            // Update state to show we are modifying user control and
+            // Update state to show we are modifing user control and
             // power management 1 regs.
             //
-            psInst->ui8State = MPU9250_STATE_INIT_SAMPLE_RATE_CFG;
-            SysCtlDelay(1000);
+            psInst->ui8State = MPU9X50_STATE_INIT_USER_CTRL;
 
             break;
         }
@@ -229,126 +255,142 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
         //
         // Change to power mode complete, device is ready for configuration.
         //
-        case MPU9250_STATE_INIT_USER_CTRL:
+        case MPU9X50_STATE_INIT_USER_CTRL:
         {
             //
             // Load index 0 with the sample rate register number.
             //
-            psInst->uCommand.pui8Buffer[0] = MPU9250_O_SMPLRT_DIV;
+            psInst->uCommand.pui8Buffer[0] = MPU9X50_O_SMPLRT_DIV;
 
             //
             // Set sample rate to 50 hertz.  1000 hz / (1 + 19)
             //
             psInst->uCommand.pui8Buffer[1] = 19;
-
             I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
-                      psInst->uCommand.pui8Buffer, 2, MPU9250Callback, psInst);
+                      psInst->uCommand.pui8Buffer, 2, MPU9X50Callback, psInst);
 
             //
             // update state to show are in process of configuring sensors.
             //
-            psInst->ui8State = MPU9250_STATE_LAST;
-            SysCtlDelay(1000);
+            psInst->ui8State = MPU9X50_STATE_INIT_SAMPLE_RATE_CFG;
             break;
         }
 
         //
         // Sensor configuration is complete.
         //
-        case MPU9250_STATE_INIT_SAMPLE_RATE_CFG:
+#ifdef MPU9X50_IS_9150
+        case MPU9X50_STATE_INIT_SAMPLE_RATE_CFG:
+#else
+        case MPU9X50_STATE_INIT_I2C_SLAVE_0:
+#endif
         {
             //
             // Write the I2C Master delay control so we only sample the AK
             // every 5th time that we sample accel/gyro.  Delay Count itself
             // handled in next state.
             //
-            psInst->uCommand.pui8Buffer[0] = MPU9250_O_I2C_MST_DELAY_CTRL;
+            psInst->uCommand.pui8Buffer[0] = MPU9X50_O_I2C_MST_DELAY_CTRL;
             psInst->uCommand.pui8Buffer[1] =
-                (MPU9250_I2C_MST_DELAY_CTRL_I2C_SLV0_DLY_EN |
-                 MPU9250_I2C_MST_DELAY_CTRL_I2C_SLV4_DLY_EN);
+                (MPU9X50_I2C_MST_DELAY_CTRL_I2C_SLV0_DLY_EN |
+                 MPU9X50_I2C_MST_DELAY_CTRL_I2C_SLV4_DLY_EN);
             I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
-                      psInst->uCommand.pui8Buffer, 2, MPU9250Callback, psInst);
+                      psInst->uCommand.pui8Buffer, 2, MPU9X50Callback, psInst);
 
             //
             // Update state to show we are configuring i2c slave delay between
             // slave events.  Slave 0 and Slave 4 transaction only occur every
             // 5th sample cycle.
             //
-            psInst->ui8State = MPU9250_STATE_INIT_I2C_SLAVE_DLY;
-            SysCtlDelay(1000);
+            psInst->ui8State = MPU9X50_STATE_INIT_I2C_SLAVE_DLY;
             break;
         }
 
         //
         // Master slave delay configuration complete.
         //
-        case MPU9250_STATE_INIT_I2C_SLAVE_DLY:
+#ifdef MPU9X50_IS_9150
+        case MPU9X50_STATE_INIT_I2C_SLAVE_DLY:
+#else
+        case MPU9X50_STATE_INIT_SAMPLE_RATE_CFG:
+#endif
         {
             //
             // Write the configuration for I2C master control clock 400khz
             // and wait for external sensor before asserting data ready
             //
-            psInst->uCommand.pui8Buffer[0] = MPU9250_O_I2C_MST_CTRL;
+            psInst->uCommand.pui8Buffer[0] = MPU9X50_O_I2C_MST_CTRL;
             psInst->uCommand.pui8Buffer[1] =
-                (MPU9250_I2C_MST_CTRL_I2C_MST_CLK_400);/* |
-                 MPU9250_I2C_MST_CTRL_WAIT_FOR_ES);*/
+                (MPU9X50_I2C_MST_CTRL_I2C_MST_CLK_400 |
+                 MPU9X50_I2C_MST_CTRL_WAIT_FOR_ES);
 
             //
-            // Configure I2C Slave 0 for read of AK8963 (I2C Address 0x0C)
-            // Start at AK8963 register status 1
+            // Configure I2C Slave 0 for read of AK8963/AK8975 (I2C Address 0x0C)
+            // Start at AK8963/AK8975 register status 1
             // Read 8 bytes and enable this slave transaction
             //
-            psInst->uCommand.pui8Buffer[2] = MPU9250_I2C_SLV0_ADDR_RW | 0x0C;
+            psInst->uCommand.pui8Buffer[2] = MPU9X50_I2C_SLV0_ADDR_RW | 0x0C;
+#ifdef MPU9X50_IS_9150
+            psInst->uCommand.pui8Buffer[3] = AK8975_O_ST1;
+#else
             psInst->uCommand.pui8Buffer[3] = AK8963_O_ST1;
-            psInst->uCommand.pui8Buffer[4] = MPU9250_I2C_SLV0_CTRL_EN | 0x08;
+#endif
+            psInst->uCommand.pui8Buffer[4] = MPU9X50_I2C_SLV0_CTRL_EN | 0x08;
             I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
-                      psInst->uCommand.pui8Buffer, 5, MPU9250Callback, psInst);
+                      psInst->uCommand.pui8Buffer, 5, MPU9X50Callback, psInst);
 
             //
             // Update state.  Now in process of configuring slave 0.
             //
-            psInst->ui8State = MPU9250_STATE_INIT_I2C_SLAVE_0;
-            SysCtlDelay(1000);
+            psInst->ui8State = MPU9X50_STATE_INIT_I2C_SLAVE_0;
             break;
         }
 
         //
         // I2C slave 0 init complete.
         //
-        case MPU9250_STATE_INIT_I2C_SLAVE_0:
+#ifdef MPU9X50_IS_9150
+        case MPU9X50_STATE_INIT_I2C_SLAVE_0:
+#else
+        case MPU9X50_STATE_INIT_I2C_SLAVE_DLY:
+#endif
         {
             //
-            // Write the configuration for I2C Slave 4 transaction to AK8963
-            // 0x0c is the AK8963 address on i2c bus.
+            // Write the configuration for I2C Slave 4 transaction to AK8963/AK8975
+            // 0x0c is the AK8963/AK8975 address on i2c bus.
             // we want to write the control register with the value for a
             // starting a single measurement.
             //
-            psInst->uCommand.pui8Buffer[0] = MPU9250_O_I2C_SLV4_ADDR;
-            psInst->uCommand.pui8Buffer[1] = 0X0C;
+            psInst->uCommand.pui8Buffer[0] = MPU9X50_O_I2C_SLV4_ADDR;
+            psInst->uCommand.pui8Buffer[1] = 0x0C;
+#ifdef MPU9X50_IS_9150
+            psInst->uCommand.pui8Buffer[2] = AK8975_O_CNTL;
+            psInst->uCommand.pui8Buffer[3] = AK8975_CNTL_MODE_SINGLE;
+#else
             psInst->uCommand.pui8Buffer[2] = AK8963_O_CNTL;
             psInst->uCommand.pui8Buffer[3] = AK8963_CNTL_MODE_SINGLE;
+#endif
 
             //
             // Enable the SLV4 transaction and set the master delay to
             // 0x04 + 1.  This means the slave transactions with delay enabled
             // will run every fifth accel/gyro sample.
             //
-            psInst->uCommand.pui8Buffer[4] = MPU9250_I2C_SLV4_CTRL_EN | 0x04;
+            psInst->uCommand.pui8Buffer[4] = MPU9X50_I2C_SLV4_CTRL_EN | 0x04;
             I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
-                      psInst->uCommand.pui8Buffer, 5, MPU9250Callback, psInst);
+                      psInst->uCommand.pui8Buffer, 5, MPU9X50Callback, psInst);
 
             //
             // Update state.  Now in the final init state.
             //
-            psInst->ui8State = MPU9250_STATE_LAST;
-            SysCtlDelay(1000);
+            psInst->ui8State = MPU9X50_STATE_LAST;
             break;
         }
 
         //
         // A write just completed
         //
-        case MPU9250_STATE_WRITE:
+        case MPU9X50_STATE_WRITE:
         {
             //
             // Set the accelerometer and gyroscope ranges to the new values.
@@ -361,7 +403,7 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
             //
             // The state machine is now idle.
             //
-            psInst->ui8State = MPU9250_STATE_IDLE;
+            psInst->ui8State = MPU9X50_STATE_IDLE;
 
             //
             // Done.
@@ -372,19 +414,19 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
         //
         // A read-modify-write just completed
         //
-        case MPU9250_STATE_RMW:
+        case MPU9X50_STATE_RMW:
         {
             //
             // See if the PWR_MGMT_1 register was just modified.
             //
             if(psInst->uCommand.sReadModifyWriteState.pui8Buffer[0] ==
-               MPU9250_O_PWR_MGMT_1)
+               MPU9X50_O_PWR_MGMT_1)
             {
                 //
                 // See if a soft reset has been issued.
                 //
                 if(psInst->uCommand.sReadModifyWriteState.pui8Buffer[1] &
-                   MPU9250_PWR_MGMT_1_DEVICE_RESET)
+                   MPU9X50_PWR_MGMT_1_DEVICE_RESET)
                 {
                     //
                     // Default range setting is +/- 2 g
@@ -404,36 +446,36 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
             // See if the GYRO_CONFIG register was just modified.
             //
             if(psInst->uCommand.sReadModifyWriteState.pui8Buffer[0] ==
-               MPU9250_O_GYRO_CONFIG)
+               MPU9X50_O_GYRO_CONFIG)
             {
                 //
                 // Extract the FS_SEL from the GYRO_CONFIG register value.
                 //
                 psInst->ui8GyroFsSel =
                     ((psInst->uCommand.sReadModifyWriteState.pui8Buffer[1] &
-                      MPU9250_GYRO_CONFIG_FS_SEL_M) >>
-                     MPU9250_GYRO_CONFIG_FS_SEL_S);
+                      MPU9X50_GYRO_CONFIG_FS_SEL_M) >>
+                     MPU9X50_GYRO_CONFIG_FS_SEL_S);
             }
 
             //
             // See if the ACCEL_CONFIG register was just modified.
             //
             if(psInst->uCommand.sReadModifyWriteState.pui8Buffer[0] ==
-               MPU9250_O_ACCEL_CONFIG)
+               MPU9X50_O_ACCEL_CONFIG)
             {
                 //
                 // Extract the FS_SEL from the ACCEL_CONFIG register value.
                 //
                 psInst->ui8AccelAfsSel =
                     ((psInst->uCommand.sReadModifyWriteState.pui8Buffer[1] &
-                      MPU9250_ACCEL_CONFIG_AFS_SEL_M) >>
-                     MPU9250_ACCEL_CONFIG_AFS_SEL_S);
+                      MPU9X50_ACCEL_CONFIG_AFS_SEL_M) >>
+                     MPU9X50_ACCEL_CONFIG_AFS_SEL_S);
             }
 
             //
             // The state machine is now idle.
             //
-            psInst->ui8State = MPU9250_STATE_IDLE;
+            psInst->ui8State = MPU9X50_STATE_IDLE;
 
             //
             // Done.
@@ -445,7 +487,7 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
     //
     // See if the state machine is now idle and there is a callback function.
     //
-    if((psInst->ui8State == MPU9250_STATE_IDLE) && psInst->pfnCallback)
+    if((psInst->ui8State == MPU9X50_STATE_IDLE) && psInst->pfnCallback)
     {
         //
         // Call the application-supplied callback function.
@@ -456,28 +498,28 @@ MPU9250Callback(void *pvCallbackData, uint_fast8_t ui8Status)
 
 //*****************************************************************************
 //
-//! Initializes the MPU9250 driver.
+//! Initializes the MPU9X50 driver.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param psI2CInst is a pointer to the I2C master driver instance data.
-//! \param ui8I2CAddr is the I2C address of the MPU9250 device.
+//! \param ui8I2CAddr is the I2C address of the MPU9X50 device.
 //! \param pfnCallback is the function to be called when the initialization has
 //! completed (can be \b NULL if a callback is not required).
 //! \param pvCallbackData is a pointer that is passed to the callback function.
 //!
-//! This function initializes the MPU9250 driver, preparing it for operation.
+//! This function initializes the MPU9X50 driver, preparing it for operation.
 //!
-//! \return Returns 1 if the MPU9250 driver was successfully initialized and 0
+//! \return Returns 1 if the MPU9X50 driver was successfully initialized and 0
 //! if it was not.
 //
 //*****************************************************************************
 uint_fast8_t
-MPU9250Init(tMPU9250 *psInst, tI2CMInstance *psI2CInst,
+MPU9X50Init(tMPU9X50 *psInst, tI2CMInstance *psI2CInst,
             uint_fast8_t ui8I2CAddr, tSensorCallback *pfnCallback,
             void *pvCallbackData)
 {
     //
-    // Initialize the MPU9250 instance structure.
+    // Initialize the MPU9X50 instance structure.
     //
     psInst->psI2CInst = psI2CInst;
     psInst->ui8Addr = ui8I2CAddr;
@@ -491,34 +533,33 @@ MPU9250Init(tMPU9250 *psInst, tI2CMInstance *psI2CInst,
     //
     // Default range setting is +/- 2 g
     //
-    psInst->ui8AccelAfsSel = (MPU9250_ACCEL_CONFIG_AFS_SEL_2G >>
-                              MPU9250_ACCEL_CONFIG_AFS_SEL_S);
-    psInst->ui8NewAccelAfsSel = (MPU9250_ACCEL_CONFIG_AFS_SEL_2G >>
-                                 MPU9250_ACCEL_CONFIG_AFS_SEL_S);
+    psInst->ui8AccelAfsSel = (MPU9X50_ACCEL_CONFIG_AFS_SEL_2G >>
+                              MPU9X50_ACCEL_CONFIG_AFS_SEL_S);
+    psInst->ui8NewAccelAfsSel = (MPU9X50_ACCEL_CONFIG_AFS_SEL_2G >>
+                                 MPU9X50_ACCEL_CONFIG_AFS_SEL_S);
 
     //
     // Default range setting is +/- 250 degrees/s
     //
-    psInst->ui8GyroFsSel = (MPU9250_GYRO_CONFIG_FS_SEL_250 >>
-                            MPU9250_GYRO_CONFIG_FS_SEL_S);
-    psInst->ui8NewGyroFsSel = (MPU9250_GYRO_CONFIG_FS_SEL_250 >>
-                               MPU9250_GYRO_CONFIG_FS_SEL_S);
+    psInst->ui8GyroFsSel = (MPU9X50_GYRO_CONFIG_FS_SEL_250 >>
+                            MPU9X50_GYRO_CONFIG_FS_SEL_S);
+    psInst->ui8NewGyroFsSel = (MPU9X50_GYRO_CONFIG_FS_SEL_250 >>
+                               MPU9X50_GYRO_CONFIG_FS_SEL_S);
 
     //
     // Set the state to show we are initiating a reset.
     //
-    psInst->ui8State = MPU9250_STATE_INIT_RESET;
+    psInst->ui8State = MPU9X50_STATE_INIT_RESET;
 
     //
     // Load the buffer with command to perform device reset
     //
-    psInst->uCommand.pui8Buffer[0] = MPU9250_O_PWR_MGMT_1;
-    psInst->uCommand.pui8Buffer[1] = MPU9250_PWR_MGMT_1_DEVICE_RESET;
-    SysCtlDelay(10);
+    psInst->uCommand.pui8Buffer[0] = MPU9X50_O_PWR_MGMT_1;
+    psInst->uCommand.pui8Buffer[1] = MPU9X50_PWR_MGMT_1_DEVICE_RESET;
     if(I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
-                 psInst->uCommand.pui8Buffer, 2, MPU9250Callback, psInst) == 0)
+                 psInst->uCommand.pui8Buffer, 2, MPU9X50Callback, psInst) == 0)
     {
-        psInst->ui8State = MPU9250_STATE_IDLE;
+        psInst->ui8State = MPU9X50_STATE_IDLE;
         return(0);
     }
 
@@ -530,28 +571,36 @@ MPU9250Init(tMPU9250 *psInst, tI2CMInstance *psI2CInst,
 
 //*****************************************************************************
 //
-//! Returns the pointer to the tAK8963 object
+//! Returns the pointer to the tAK8963/tAK8975 object
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //!
-//! The MPU9250 contains in internal AK8963 magnetometer.  To access data from
+//! The MPU9X50 contains in internal AK8963/AK8975 magnetometer.  To access data from
 //! that sensor, application should use this function to get a pointer to the
-//! tAK8963 object, and then use the AK8963 APIs.
+//! tAK8963/tAK8975 object, and then use the AK8963/AK8975 APIs.
 //!
-//! \return Returns the pointer to the tAK8963 object
+//! \return Returns the pointer to the tAK8963/tAK8975 object
 //
 //*****************************************************************************
+#ifdef MPU9X50_IS_9150
+tAK8975 *
+MPU9X50MagnetoInstGet(tMPU9X50 *psInst)
+{
+    return(&(psInst->sAK8975Inst));
+}
+#else
 tAK8963 *
-MPU9250MagnetoInstGet(tMPU9250 *psInst)
+MPU9X50MagnetoInstGet(tMPU9X50 *psInst)
 {
     return(&(psInst->sAK8963Inst));
 }
+#endif
 
 //*****************************************************************************
 //
-//! Reads data from MPU9250 registers.
+//! Reads data from MPU9X50 registers.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param ui8Reg is the first register to read.
 //! \param pui8Data is a pointer to the location to store the data that is
 //! read.
@@ -561,22 +610,22 @@ MPU9250MagnetoInstGet(tMPU9250 *psInst)
 //! \param pvCallbackData is a pointer that is passed to the callback function.
 //!
 //! This function reads a sequence of data values from consecutive registers in
-//! the MPU9250.
+//! the MPU9X50.
 //!
 //! \return Returns 1 if the write was successfully started and 0 if it was
 //! not.
 //
 //*****************************************************************************
 uint_fast8_t
-MPU9250Read(tMPU9250 *psInst, uint_fast8_t ui8Reg, uint8_t *pui8Data,
+MPU9X50Read(tMPU9X50 *psInst, uint_fast8_t ui8Reg, uint8_t *pui8Data,
             uint_fast16_t ui16Count, tSensorCallback *pfnCallback,
             void *pvCallbackData)
 {
     //
-    // Return a failure if the MPU9250 driver is not idle (in other words,
-    // there is already an outstanding request to the MPU9250).
+    // Return a failure if the MPU9X50 driver is not idle (in other words,
+    // there is already an outstanding request to the MPU9X50).
     //
-    if(psInst->ui8State != MPU9250_STATE_IDLE)
+    if(psInst->ui8State != MPU9X50_STATE_IDLE)
     {
         return(0);
     }
@@ -590,21 +639,21 @@ MPU9250Read(tMPU9250 *psInst, uint_fast8_t ui8Reg, uint8_t *pui8Data,
     //
     // Move the state machine to the wait for read state.
     //
-    psInst->ui8State = MPU9250_STATE_READ;
+    psInst->ui8State = MPU9X50_STATE_READ;
 
     //
-    // Read the requested registers from the MPU9250.
+    // Read the requested registers from the MPU9X50.
     //
     psInst->uCommand.pui8Buffer[0] = ui8Reg;
     if(I2CMRead(psInst->psI2CInst, psInst->ui8Addr,
                 psInst->uCommand.pui8Buffer, 1, pui8Data, ui16Count,
-                MPU9250Callback, psInst) == 0)
+                MPU9X50Callback, psInst) == 0)
     {
         //
         // The I2C write failed, so move to the idle state and return a
         // failure.
         //
-        psInst->ui8State = MPU9250_STATE_IDLE;
+        psInst->ui8State = MPU9X50_STATE_IDLE;
         return(0);
     }
 
@@ -616,9 +665,9 @@ MPU9250Read(tMPU9250 *psInst, uint_fast8_t ui8Reg, uint8_t *pui8Data,
 
 //*****************************************************************************
 //
-//! Writes data to MPU9250 registers.
+//! Writes data to MPU9X50 registers.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param ui8Reg is the first register to write.
 //! \param pui8Data is a pointer to the data to write.
 //! \param ui16Count is the number of data bytes to write.
@@ -627,7 +676,7 @@ MPU9250Read(tMPU9250 *psInst, uint_fast8_t ui8Reg, uint8_t *pui8Data,
 //! \param pvCallbackData is a pointer that is passed to the callback function.
 //!
 //! This function writes a sequence of data values to consecutive registers in
-//! the MPU9250.  The first byte of the \e pui8Data buffer contains the value
+//! the MPU9X50.  The first byte of the \e pui8Data buffer contains the value
 //! to be written into the \e ui8Reg register, the second value contains the
 //! data to be written into the next register, and so on.
 //!
@@ -636,15 +685,15 @@ MPU9250Read(tMPU9250 *psInst, uint_fast8_t ui8Reg, uint8_t *pui8Data,
 //
 //*****************************************************************************
 uint_fast8_t
-MPU9250Write(tMPU9250 *psInst, uint_fast8_t ui8Reg, const uint8_t *pui8Data,
+MPU9X50Write(tMPU9X50 *psInst, uint_fast8_t ui8Reg, const uint8_t *pui8Data,
              uint_fast16_t ui16Count, tSensorCallback *pfnCallback,
              void *pvCallbackData)
 {
     //
-    // Return a failure if the MPU9250 driver is not idle (in other words,
-    // there is already an outstanding request to the MPU9250).
+    // Return a failure if the MPU9X50 driver is not idle (in other words,
+    // there is already an outstanding request to the MPU9X50).
     //
-    if(psInst->ui8State != MPU9250_STATE_IDLE)
+    if(psInst->ui8State != MPU9X50_STATE_IDLE)
     {
         return(0);
     }
@@ -658,14 +707,14 @@ MPU9250Write(tMPU9250 *psInst, uint_fast8_t ui8Reg, const uint8_t *pui8Data,
     //
     // See if the PWR_MGMT_1 register is being written.
     //
-    if((ui8Reg <= MPU9250_O_PWR_MGMT_1) &&
-       ((ui8Reg + ui16Count) > MPU9250_O_PWR_MGMT_1))
+    if((ui8Reg <= MPU9X50_O_PWR_MGMT_1) &&
+       ((ui8Reg + ui16Count) > MPU9X50_O_PWR_MGMT_1))
     {
         //
         // See if a soft reset is being requested.
         //
-        if(pui8Data[ui8Reg - MPU9250_O_PWR_MGMT_1] &
-           MPU9250_PWR_MGMT_1_DEVICE_RESET)
+        if(pui8Data[ui8Reg - MPU9X50_O_PWR_MGMT_1] &
+           MPU9X50_PWR_MGMT_1_DEVICE_RESET)
         {
             //
             // Default range setting is +/- 2 g.
@@ -682,49 +731,49 @@ MPU9250Write(tMPU9250 *psInst, uint_fast8_t ui8Reg, const uint8_t *pui8Data,
     //
     // See if the GYRO_CONFIG register is being written.
     //
-    if((ui8Reg <= MPU9250_O_GYRO_CONFIG) &&
-       ((ui8Reg + ui16Count) > MPU9250_O_GYRO_CONFIG))
+    if((ui8Reg <= MPU9X50_O_GYRO_CONFIG) &&
+       ((ui8Reg + ui16Count) > MPU9X50_O_GYRO_CONFIG))
     {
         //
         // Extract the FS_SEL from the GYRO_CONFIG register value.
         //
-        psInst->ui8NewGyroFsSel = ((pui8Data[ui8Reg - MPU9250_O_GYRO_CONFIG] &
-                                    MPU9250_GYRO_CONFIG_FS_SEL_M) >>
-                                   MPU9250_GYRO_CONFIG_FS_SEL_S);
+        psInst->ui8NewGyroFsSel = ((pui8Data[ui8Reg - MPU9X50_O_GYRO_CONFIG] &
+                                    MPU9X50_GYRO_CONFIG_FS_SEL_M) >>
+                                   MPU9X50_GYRO_CONFIG_FS_SEL_S);
     }
 
     //
     // See if the ACCEL_CONFIG register is being written.
     //
-    if((ui8Reg <= MPU9250_O_ACCEL_CONFIG) &&
-       ((ui8Reg + ui16Count) > MPU9250_O_ACCEL_CONFIG))
+    if((ui8Reg <= MPU9X50_O_ACCEL_CONFIG) &&
+       ((ui8Reg + ui16Count) > MPU9X50_O_ACCEL_CONFIG))
     {
         //
         // Extract the AFS_SEL from the ACCEL_CONFIG register value.
         //
         psInst->ui8NewAccelAfsSel =
-            ((pui8Data[ui8Reg - MPU9250_O_ACCEL_CONFIG] &
-              MPU9250_ACCEL_CONFIG_AFS_SEL_M) >>
-             MPU9250_ACCEL_CONFIG_AFS_SEL_S);
+            ((pui8Data[ui8Reg - MPU9X50_O_ACCEL_CONFIG] &
+              MPU9X50_ACCEL_CONFIG_AFS_SEL_M) >>
+             MPU9X50_ACCEL_CONFIG_AFS_SEL_S);
     }
 
     //
     // Move the state machine to the wait for write state.
     //
-    psInst->ui8State = MPU9250_STATE_WRITE;
+    psInst->ui8State = MPU9X50_STATE_WRITE;
 
     //
-    // Write the requested registers to the MPU9250.
+    // Write the requested registers to the MPU9X50.
     //
     if(I2CMWrite8(&(psInst->uCommand.sWriteState), psInst->psI2CInst,
                   psInst->ui8Addr, ui8Reg, pui8Data, ui16Count,
-                  MPU9250Callback, psInst) == 0)
+                  MPU9X50Callback, psInst) == 0)
     {
         //
         // The I2C write failed, so move to the idle state and return a
         // failure.
         //
-        psInst->ui8State = MPU9250_STATE_IDLE;
+        psInst->ui8State = MPU9X50_STATE_IDLE;
         return(0);
     }
 
@@ -736,9 +785,9 @@ MPU9250Write(tMPU9250 *psInst, uint_fast8_t ui8Reg, const uint8_t *pui8Data,
 
 //*****************************************************************************
 //
-//! Performs a read-modify-write of a MPU9250 register.
+//! Performs a read-modify-write of a MPU9X50 register.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param ui8Reg is the register to modify.
 //! \param ui8Mask is the bit mask that is ANDed with the current register
 //! value.
@@ -748,26 +797,26 @@ MPU9250Write(tMPU9250 *psInst, uint_fast8_t ui8Reg, const uint8_t *pui8Data,
 //! changed (can be \b NULL if a callback is not required).
 //! \param pvCallbackData is a pointer that is passed to the callback function.
 //!
-//! This function changes the value of a register in the MPU9250 via a
+//! This function changes the value of a register in the MPU9X50 via a
 //! read-modify-write operation, allowing one of the fields to be changed
 //! without disturbing the other fields.  The \e ui8Reg register is read, ANDed
 //! with \e ui8Mask, ORed with \e ui8Value, and then written back to the
-//! MPU9250.
+//! MPU9X50.
 //!
 //! \return Returns 1 if the read-modify-write was successfully started and 0
 //! if it was not.
 //
 //*****************************************************************************
 uint_fast8_t
-MPU9250ReadModifyWrite(tMPU9250 *psInst, uint_fast8_t ui8Reg,
+MPU9X50ReadModifyWrite(tMPU9X50 *psInst, uint_fast8_t ui8Reg,
                        uint_fast8_t ui8Mask, uint_fast8_t ui8Value,
                        tSensorCallback *pfnCallback, void *pvCallbackData)
 {
     //
-    // Return a failure if the MPU9250 driver is not idle (in other words,
-    // there is already an outstanding request to the MPU9250).
+    // Return a failure if the MPU9X50 driver is not idle (in other words,
+    // there is already an outstanding request to the MPU9X50).
     //
-    if(psInst->ui8State != MPU9250_STATE_IDLE)
+    if(psInst->ui8State != MPU9X50_STATE_IDLE)
     {
         return(0);
     }
@@ -781,20 +830,20 @@ MPU9250ReadModifyWrite(tMPU9250 *psInst, uint_fast8_t ui8Reg,
     //
     // Move the state machine to the wait for read-modify-write state.
     //
-    psInst->ui8State = MPU9250_STATE_RMW;
+    psInst->ui8State = MPU9X50_STATE_RMW;
 
     //
-    // Submit the read-modify-write request to the MPU9250.
+    // Submit the read-modify-write request to the MPU9X50.
     //
     if(I2CMReadModifyWrite8(&(psInst->uCommand.sReadModifyWriteState),
                             psInst->psI2CInst, psInst->ui8Addr, ui8Reg,
-                            ui8Mask, ui8Value, MPU9250Callback, psInst) == 0)
+                            ui8Mask, ui8Value, MPU9X50Callback, psInst) == 0)
     {
         //
         // The I2C read-modify-write failed, so move to the idle state and
         // return a failure.
         //
-        psInst->ui8State = MPU9250_STATE_IDLE;
+        psInst->ui8State = MPU9X50_STATE_IDLE;
         return(0);
     }
 
@@ -806,37 +855,37 @@ MPU9250ReadModifyWrite(tMPU9250 *psInst, uint_fast8_t ui8Reg,
 
 //*****************************************************************************
 //
-//! Reads the accelerometer and gyroscope data from the MPU9250 and the
+//! Reads the accelerometer and gyroscope data from the MPU9X50 and the
 //! magnetometer data from the on-chip aK8975.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param pfnCallback is the function to be called when the data has been read
 //! (can be \b NULL if a callback is not required).
 //! \param pvCallbackData is a pointer that is passed to the callback function.
 //!
-//! This function initiates a read of the MPU9250 data registers.  When the
+//! This function initiates a read of the MPU9X50 data registers.  When the
 //! read has completed (as indicated by calling the callback function), the new
 //! readings can be obtained via:
 //!
-//! - MPU9250DataAccelGetRaw()
-//! - MPU9250DataAccelGetFloat()
-//! - MPU9250DataGyroGetRaw()
-//! - MPU9250DataGyroGetFloat()
-//! - MPU9250DataMagnetoGetRaw()
-//! - MPU9250DataMagnetoGetFloat()
+//! - MPU9X50DataAccelGetRaw()
+//! - MPU9X50DataAccelGetFloat()
+//! - MPU9X50DataGyroGetRaw()
+//! - MPU9X50DataGyroGetFloat()
+//! - MPU9X50DataMagnetoGetRaw()
+//! - MPU9X50DataMagnetoGetFloat()
 //!
 //! \return Returns 1 if the read was successfully started and 0 if it was not.
 //
 //*****************************************************************************
 uint_fast8_t
-MPU9250DataRead(tMPU9250 *psInst, tSensorCallback *pfnCallback,
+MPU9X50DataRead(tMPU9X50 *psInst, tSensorCallback *pfnCallback,
                 void *pvCallbackData)
 {
     //
-    // Return a failure if the MPU9250 driver is not idle (in other words,
-    // there is already an outstanding request to the MPU9250).
+    // Return a failure if the MPU9X50 driver is not idle (in other words,
+    // there is already an outstanding request to the MPU9X50).
     //
-    if(psInst->ui8State != MPU9250_STATE_IDLE)
+    if(psInst->ui8State != MPU9X50_STATE_IDLE)
     {
         return(0);
     }
@@ -850,23 +899,23 @@ MPU9250DataRead(tMPU9250 *psInst, tSensorCallback *pfnCallback,
     //
     // Move the state machine to the wait for data read state.
     //
-    psInst->ui8State = MPU9250_STATE_RD_DATA;
+    psInst->ui8State = MPU9X50_STATE_RD_DATA;
 
     //
-    // Read the data registers from the MPU9250.
+    // Read the data registers from the MPU9X50.
     //
     // (ACCEL_XOUT_H(0x3B) -> GYRO_ZOUT_L(0x48) = 14 bytes
     // Grab Ext Sens Data as well for another 8 bytes.  ST1 + Mag Data + ST2
     //
-    psInst->uCommand.pui8Buffer[0] = MPU9250_O_ACCEL_XOUT_H;
+    psInst->uCommand.pui8Buffer[0] = MPU9X50_O_ACCEL_XOUT_H;
     if(I2CMRead(psInst->psI2CInst, psInst->ui8Addr,
                 psInst->uCommand.pui8Buffer, 1, psInst->pui8Data, 22,
-                MPU9250Callback, psInst) == 0)
+                MPU9X50Callback, psInst) == 0)
     {
         //
         // The I2C read failed, so move to the idle state and return a failure.
         //
-        psInst->ui8State = MPU9250_STATE_IDLE;
+        psInst->ui8State = MPU9X50_STATE_IDLE;
         return(0);
     }
 
@@ -880,7 +929,7 @@ MPU9250DataRead(tMPU9250 *psInst, tSensorCallback *pfnCallback,
 //
 //! Gets the raw accelerometer data from the most recent data read.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param pui16AccelX is a pointer to the value into which the raw X-axis
 //! accelerometer data is stored.
 //! \param pui16AccelY is a pointer to the value into which the raw Y-axis
@@ -896,7 +945,7 @@ MPU9250DataRead(tMPU9250 *psInst, tSensorCallback *pfnCallback,
 //
 //*****************************************************************************
 void
-MPU9250DataAccelGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16AccelX,
+MPU9X50DataAccelGetRaw(tMPU9X50 *psInst, uint_fast16_t *pui16AccelX,
                        uint_fast16_t *pui16AccelY, uint_fast16_t *pui16AccelZ)
 {
     //
@@ -920,7 +969,7 @@ MPU9250DataAccelGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16AccelX,
 //
 //! Gets the accelerometer data from the most recent data read.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param pfAccelX is a pointer to the value into which the X-axis
 //! accelerometer data is stored.
 //! \param pfAccelY is a pointer to the value into which the Y-axis
@@ -936,7 +985,7 @@ MPU9250DataAccelGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16AccelX,
 //
 //*****************************************************************************
 void
-MPU9250DataAccelGetFloat(tMPU9250 *psInst, float *pfAccelX, float *pfAccelY,
+MPU9X50DataAccelGetFloat(tMPU9X50 *psInst, float *pfAccelX, float *pfAccelY,
                          float *pfAccelZ)
 {
     float fFactor;
@@ -944,7 +993,7 @@ MPU9250DataAccelGetFloat(tMPU9250 *psInst, float *pfAccelX, float *pfAccelY,
     //
     // Get the acceleration conversion factor for the current data format.
     //
-    fFactor = g_fMPU9250AccelFactors[psInst->ui8AccelAfsSel];
+    fFactor = g_fMPU9X50AccelFactors[psInst->ui8AccelAfsSel];
 
     //
     // Convert the accelerometer values into m/sec^2
@@ -970,7 +1019,7 @@ MPU9250DataAccelGetFloat(tMPU9250 *psInst, float *pfAccelX, float *pfAccelY,
 //
 //! Gets the raw gyroscope data from the most recent data read.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param pui16GyroX is a pointer to the value into which the raw X-axis
 //! gyroscope data is stored.
 //! \param pui16GyroY is a pointer to the value into which the raw Y-axis
@@ -986,7 +1035,7 @@ MPU9250DataAccelGetFloat(tMPU9250 *psInst, float *pfAccelX, float *pfAccelY,
 //
 //*****************************************************************************
 void
-MPU9250DataGyroGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16GyroX,
+MPU9X50DataGyroGetRaw(tMPU9X50 *psInst, uint_fast16_t *pui16GyroX,
                       uint_fast16_t *pui16GyroY, uint_fast16_t *pui16GyroZ)
 {
     //
@@ -1010,7 +1059,7 @@ MPU9250DataGyroGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16GyroX,
 //
 //! Gets the gyroscope data from the most recent data read.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param pfGyroX is a pointer to the value into which the X-axis
 //! gyroscope data is stored.
 //! \param pfGyroY is a pointer to the value into which the Y-axis
@@ -1026,7 +1075,7 @@ MPU9250DataGyroGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16GyroX,
 //
 //*****************************************************************************
 void
-MPU9250DataGyroGetFloat(tMPU9250 *psInst, float *pfGyroX, float *pfGyroY,
+MPU9X50DataGyroGetFloat(tMPU9X50 *psInst, float *pfGyroX, float *pfGyroY,
                         float *pfGyroZ)
 {
     float fFactor;
@@ -1035,7 +1084,7 @@ MPU9250DataGyroGetFloat(tMPU9250 *psInst, float *pfGyroX, float *pfGyroY,
     //
     // Get the gyroscope conversion factor for the current data format.
     //
-    fFactor = g_fMPU9250GyroFactors[psInst->ui8GyroFsSel];
+    fFactor = g_fMPU9X50GyroFactors[psInst->ui8GyroFsSel];
 
     //
     // Convert the gyroscope values into rad/sec
@@ -1070,7 +1119,7 @@ MPU9250DataGyroGetFloat(tMPU9250 *psInst, float *pfGyroX, float *pfGyroY,
 //
 //! Gets the raw magnetometer data from the most recent data read.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param pui16MagnetoX is a pointer to the value into which the raw X-axis
 //! magnetometer data is stored.
 //! \param pui16MagnetoY is a pointer to the value into which the raw Y-axis
@@ -1086,7 +1135,7 @@ MPU9250DataGyroGetFloat(tMPU9250 *psInst, float *pfGyroX, float *pfGyroY,
 //
 //*****************************************************************************
 void
-MPU9250DataMagnetoGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16MagnetoX,
+MPU9X50DataMagnetoGetRaw(tMPU9X50 *psInst, uint_fast16_t *pui16MagnetoX,
                          uint_fast16_t *pui16MagnetoY,
                          uint_fast16_t *pui16MagnetoZ)
 {
@@ -1115,7 +1164,7 @@ MPU9250DataMagnetoGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16MagnetoX,
 //
 //! Gets the magnetometer data from the most recent data read.
 //!
-//! \param psInst is a pointer to the MPU9250 instance data.
+//! \param psInst is a pointer to the MPU9X50 instance data.
 //! \param pfMagnetoX is a pointer to the value into which the X-axis
 //! magnetometer data is stored.
 //! \param pfMagnetoY is a pointer to the value into which the Y-axis
@@ -1131,7 +1180,7 @@ MPU9250DataMagnetoGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16MagnetoX,
 //
 //*****************************************************************************
 void
-MPU9250DataMagnetoGetFloat(tMPU9250 *psInst, float *pfMagnetoX,
+MPU9X50DataMagnetoGetFloat(tMPU9X50 *psInst, float *pfMagnetoX,
                            float *pfMagnetoY, float *pfMagnetoZ)
 {
     int16_t *pi16Data;
@@ -1160,59 +1209,7 @@ MPU9250DataMagnetoGetFloat(tMPU9250 *psInst, float *pfMagnetoX,
 
 //*****************************************************************************
 //
-//! Gets the thermometer data from the most recent data read.
-//!
-//! \param psInst is a pointer to the MPU9250 instance data.
-//! \param pui16Temp is a pointer to where to store the temperature data.
-//!
-//! This function returns the thermometer data from the most recent data read.
-//!
-//! \return None.
+// Close the Doxygen group.
+//! @}
 //
 //*****************************************************************************
-void
-MPU9250DataTempGetRaw(tMPU9250 *psInst, uint_fast16_t *pui16Temp)
-{
-    uint8_t *pui8Data;
-
-    pui8Data = &(psInst->pui8Data[6]);
-
-    //
-    // Return the raw thermometer value.
-    //
-    if(pui16Temp)
-    {
-        *pui16Temp = (pui8Data[0] << 8) | pui8Data[1];
-    }
-}
-
-//*****************************************************************************
-//
-//! Gets the thermometer data from the most recent data read.
-//!
-//! \param psInst is a pointer to the MPU9250 instance data.
-//! \param pui16Temp is a pointer to where to store the temperature data.
-//!
-//! This function returns the thermometer data from the most recent data read,
-//! converted into degrees Celsius.
-//!
-//! \return None.
-//
-//*****************************************************************************
-
-void
-MPU9250DataTempGetFloat(tMPU9250 *psInst, float *pfTemp)
-{
-    int16_t *pi16Data;
-
-        pi16Data = (int16_t *)(psInst->pui8Data + 5);
-
-        //
-        // Convert the thermometer values into floating-point degrees values.
-        //
-        if(pfTemp)
-        {
-            *pfTemp = (float)pi16Data[0];
-            *pfTemp = (*pfTemp / 331.87) + 21.0;
-        }
-}
