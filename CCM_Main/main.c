@@ -218,9 +218,6 @@ Timer0IntHandler(void)
 
 int
 main(void) {
-  char str[256];
-  uint64_t oldTime, newTime;
-
   //
   // Set the clocking to run at 80MHz.
   //
