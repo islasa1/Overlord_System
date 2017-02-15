@@ -16,6 +16,21 @@
 
 //*****************************************************************************
 //
+// The states of the BQ27441 state machine.
+//
+//*****************************************************************************
+#define BQ27441_STATE_IDLE         0
+#define BQ27441_STATE_INIT         1
+#define BQ27441_STATE_READ         2
+#define BQ27441_STATE_WRITE        3
+#define BQ27441_STATE_RMW          4
+#define BQ27441_STATE_READ_DATA_1  5
+#define BQ27441_STATE_READ_DATA_2  6
+#define BQ27441_STATE_READ_DATA_3  7
+#define BQ27441_STATE_READ_DATA_4  8
+
+//*****************************************************************************
+//
 // The structure that defines the internal state of the BQ27441 driver.
 //
 //*****************************************************************************
@@ -89,8 +104,6 @@ tBQ27441;
 // Function prototypes.
 //
 //*****************************************************************************
-extern void BQ27441Callback(void *pvCallbackData, uint_fast8_t ui8Status);
-extern void AppCallback(void *pvCallbackData, uint_fast8_t ui8Status);
 extern uint_fast8_t BQ27441Init(tBQ27441 *psInst, tI2CMInstance *psI2CInst,
                                   uint_fast8_t ui8I2CAddr,
                                   tSensorCallback *pfnCallback,

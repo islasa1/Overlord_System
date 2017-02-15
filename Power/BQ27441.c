@@ -16,21 +16,6 @@
 
 //*****************************************************************************
 //
-// The states of the BQ27441 state machine.
-//
-//*****************************************************************************
-#define BQ27441_STATE_IDLE         0
-#define BQ27441_STATE_INIT         1
-#define BQ27441_STATE_READ         2
-#define BQ27441_STATE_WRITE        3
-#define BQ27441_STATE_RMW          4
-#define BQ27441_STATE_READ_DATA_1  5
-#define BQ27441_STATE_READ_DATA_2  6
-#define BQ27441_STATE_READ_DATA_3  7
-#define BQ27441_STATE_READ_DATA_4  8
-
-//*****************************************************************************
-//
 // The constants used to calculate object temperature.
 //
 //*****************************************************************************
@@ -224,7 +209,7 @@ BQ27441Init(tBQ27441 *psInst, tI2CMInstance *psI2CInst,
     //
     if(pfnCallback)
     {
-        pfnCallback(pvCallbackData, 0);
+        pfnCallback(pvCallbackData, I2CM_STATUS_SUCCESS);
     }
 
     //
@@ -472,7 +457,7 @@ BQ27441DataRead(tBQ27441 *psInst, tSensorCallback *pfnCallback,
     //
     if(psInst->ui8State != BQ27441_STATE_IDLE)
     {
-        return(3);
+        return(0);
     }
 
     //
@@ -505,7 +490,7 @@ BQ27441DataRead(tBQ27441 *psInst, tSensorCallback *pfnCallback,
     //
     // Success.
     //
-    psInst->ui8State = BQ27441_STATE_IDLE;
+
     return(1);
 }
 
