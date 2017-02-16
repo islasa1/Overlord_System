@@ -32,6 +32,13 @@
 
 //*****************************************************************************
 //
+//! \addtogroup imu_api
+//! @{
+//
+//*****************************************************************************
+
+//*****************************************************************************
+//
 // Global flags to alert main that I2C transaction is complete
 //
 //*****************************************************************************
@@ -67,8 +74,17 @@ static tI2CMInstance *sg_psI2CMInst;
 
 //*****************************************************************************
 //
-// Function to wait for the MPU9X50 transactions to complete. Use this to spin
-// wait on the I2C bus.
+//! Waits for the MPU9X50 to finish an I2C transaction.
+//!
+//! \param pcFilename is a pointer to a char for use in an error handler. Not
+//! used in this implementation.
+//! \param ui32Line is an integer for use with an error handler. Not used in
+//! this implementation.
+//!
+//! This function spin waits on the I2C bus for the MPU9X50 to finish its
+//! transaction. Allows for I2C handling to be implemented.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -102,8 +118,17 @@ MPU9X50AppI2CWait(char *pcFilename, uint_fast32_t ui32Line)
 
 //*****************************************************************************
 //
-// Function to wait for the AK8963 transactions to complete. Use this to spin
-// wait on the I2C bus.
+//! Waits for the AK8963 to finish an I2C transaction.
+//!
+//! \param pcFilename is a pointer to a char for use in an error handler. Not
+//! used in this implementation.
+//! \param ui32Line is an integer for use with an error handler. Not used in
+//! this implementation.
+//!
+//! This function spin waits on the I2C bus for the AK8963 to finish its
+//! transaction. Allows for I2C handling to be implemented.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -133,9 +158,19 @@ AK8963AppI2CWait(char *pcFilename, uint_fast32_t ui32Line)
 
 //*****************************************************************************
 //
-// MPU9X50 Sensor callback function.  Called at the end of MPU9X50 sensor
-// driver transactions. This is called from I2C interrupt context. Therefore,
-// we just set a flag and let main do the bulk of the computations and display.
+//! MPU9X50 sensor callback function
+//!
+//! \param pvCallbackData is a pointer to data to be used by the callback
+//! function. It is not used in this implementation.
+//! \param ui8Status is an 8 bit integer that represents the status of the
+//! transaction that this is a callback for.
+//!
+//! This function is called at the end of MPU9X50 I2C transactions and so is
+//! used to check the status of those transactions. If ui8Status is not
+//! success, the error flag is set to the error code. Otherwise, the done
+//! flag is set.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -158,9 +193,19 @@ MPU9X50AppCallback(void *pvCallbackData, uint_fast8_t ui8Status)
 
 //*****************************************************************************
 //
-// AK8963 Sensor callback function.  Called at the end of AK8963 sensor
-// driver transactions. This is called from I2C interrupt context. Therefore,
-// we just set a flag and let main do the bulk of the computations and display.
+//! AK8963 sensor callback function
+//!
+//! \param pvCallbackData is a pointer to data to be used by the callback
+//! function. It is not used in this implementation.
+//! \param ui8Status is an 8 bit integer that represents the status of the
+//! transaction that this is a callback for.
+//!
+//! This function is called at the end of AK8963 I2C transactions and so is
+//! used to check the status of those transactions. If ui8Status is not
+//! success, the error flag is set to the error code. Otherwise, the done
+//! flag is set.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -183,8 +228,13 @@ AK8963AppCallback(void *pvCallbackData, uint_fast8_t ui8Status)
 
 //*****************************************************************************
 //
-// Called by the NVIC as a result of I2C1 Interrupt. I2C1 is the I2C connection
-// to the MPU9X50.
+//! Called as a result of the MPU9X50 I2C interrupt.
+//!
+//! This function is a wrapper for the I2C master interrupt handler. It is
+//! needed at the application layer in order to use the I2C master driver
+//! instance. It is called as a result of the
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -200,7 +250,13 @@ MPU9X50I2CIntHandler(void)
 
 //*****************************************************************************
 //
-// Interrupt handler for MPU9X50 data ready.
+//! Called as a result of the MPU9X50 data ready interrupt.
+//!
+//! This function is called as a result of the MPU9X50 data ready interrupt.
+//! It clears the interrupt and then Reads the data from the MPU9X50 and the
+//! AK8963.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -221,7 +277,20 @@ MPU9X50IntHandler(void)
 
 //*****************************************************************************
 //
-// Get data from MPU9X50 and AK8963.
+//! Gets the data from the MPU9X50 and AK8963 driver structures.
+//!
+//! \param pfAccel is a pointer to an array of floats where the accelerometer
+//! data can be stored. Should be at least size 3.
+//! \param pfGyro is a pointer to an array of floats where the gyroscope data
+//! can be stored. Should be at least size 3.
+//! \param pfMag is a pointer to an array of floats where the magnetometer data
+//! can be stored. Should be at least size 3.
+//!
+//! This functions gets the data from the MPU9X50 and AK8963 driver structures
+//! as floats and stores it in the provided arrays. This should be called after
+//! calling the data read functions for both of the drivers.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -234,7 +303,22 @@ IMUDataGetFloat(float *pfAccel, float *pfGyro, float *pfMag)
 
 //*****************************************************************************
 //
-// Initialize the IMU which includes the MPU9X50 and AK8963.
+//! Initializes the MPU9X50, AK8963, and I2C master drivers.
+//!
+//! \param psMPU9X50Inst is a pointer to the MPU9X50 driver instance to be
+//! initialized.
+//! \param psAK8963Inst is a pointer to the AK8963 driver instance to be
+//! initialized.
+//! \param psI2CMInst is a pointer to the I2C master driver instance to be
+//! initialized.
+//!
+//! This function initializes the drivers for the MPU9X50, AK8963, and I2C
+//! master instances. The structures are passed in, although this could be
+//! changed to simply use the static global pointers. Calls the specific
+//! driver init functions as well as writing settings to the devices and
+//! assigning interrupts.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void
@@ -331,5 +415,10 @@ IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
     sg_vui8MPUI2CDoneFlag = true;
 }
 
-
+//*****************************************************************************
+//
+// Close the Doxygen group.
+//! @}
+//
+//*****************************************************************************
 

@@ -13,17 +13,34 @@
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/interrupt.h"
-#include "IMU.h"
+#include "./IMU.h"
 #include "sensorlib/i2cm_drv.h"
 #include "sensorlib/ak8963.h"
-#include "mpu9x50.h"
+#include "./mpu9x50.h"
 
 //*****************************************************************************
 //
-// Tests to make sure that we are getting data from the IMU. First checks to
-// make sure WHOAMI registers return the correct values from both the AK8963
-// and MPU9X50. Then makes sure that we receive several different values from
-// the sensors to ensure that we are getting actual data.
+//! \addtogroup imu_tests
+//! @{
+//
+//*****************************************************************************
+
+//*****************************************************************************
+//
+//! First IMU test to make sure we have connection.
+//!
+//! \param psMPU9X50Inst is a pointer to an MPU9X50 driver instance to be
+//! tested.
+//! \param psAK8963Inst is a pointer to an AK8963 driver instance to be tested.
+//!
+//! This function tests the given MPU9X50 and AK8963 driver instances to make
+//! sure that we are able to communicate with the devices. First checks the
+//! who am I response and then makes sure that we are getting varied readings
+//! from the sensors.
+//!
+//! \return Returns true if IMU passed the test. Otherwise it continuously
+//! spins until the desired response is received. The user may implement a
+//! timeout if a negative response is required on fail.
 //
 //*****************************************************************************
 bool
@@ -112,5 +129,8 @@ IMUTest1(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst)
         }
     }
 
+    //
+    // Return success!
+    //
     return true;
 }

@@ -109,8 +109,21 @@ static const float g_fMPU9X50GyroFactors[] =
 
 //*****************************************************************************
 //
-// The callback function that is called when I2C transations to/from the
-// MPU9X50 have completed.
+//! Callback function for I2C transactions with the MPU9X50.
+//!
+//! \param pvCallbackData is a pointer to the data used by the callback
+//! function. Should point to an MPU9X50 instance.
+//! \param ui8Status is an 8 bit integer that represents the status of the
+//! I2C transaction.
+//!
+//! This function is a state machine that is used to determine the response
+//! at the end of an I2C transaction. The state of the MPU9X50 instance given
+//! determines course of action. For initialization, this function is called
+//! multiple times, changing the state with every call to progress in the
+//! correct order. Otherwise, for reads and writes it makes sure that the
+//! status is success and then calls the MPU9X50 instance callback function.
+//!
+//! \return None.
 //
 //*****************************************************************************
 static void
