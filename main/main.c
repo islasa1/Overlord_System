@@ -13,35 +13,18 @@
 // Standard Includes
 //
 //*****************************************************************************
-#include <stdint.h>
-#include <stdio.h>
-#include <stdbool.h>
-
-#include <inc/hw_memmap.h>
-#include <inc/hw_ints.h>
-
-#include <driverlib/debug.h>
-#include <driverlib/gpio.h>
-#include <driverlib/i2c.h>
-#include <driverlib/pin_map.h>
-#include <driverlib/rom.h>
-#include <driverlib/sysctl.h>
-
-#include <sensorlib/i2cm_drv.h>
-
-
 #include <ctype.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <math.h>
 
+#include "inc/hw_gpio.h"
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_nvic.h"
 #include "inc/hw_types.h"
-#include "inc/hw_gpio.h"
 
 #include "driverlib/debug.h"
 #include "driverlib/fpu.h"
@@ -56,22 +39,23 @@
 #include "driverlib/timer.h"
 #include "driverlib/uart.h"
 
-#include "sensorlib/i2cm_drv.h"
 #include "sensorlib/hw_ak8963.h"
 #include "sensorlib/hw_ak8975.h"
 #include "sensorlib/ak8963.h"
 #include "sensorlib/ak8975.h"
+#include "sensorlib/i2cm_drv.h"
 #include "sensorlib/magneto.h"
 
 #include "utils/uartstdio.h"
 #include "utils/cmdline.h"
 
+
+#include "../peripherals/bq27441.h"
 #include "../peripherals/gpio.h"
 #include "../peripherals/i2c.h"
 #include "../peripherals/misc.h"
-#include "../Power/bq27441.h"
+#include "../peripherals/hw_mpu9x50.h"
 
-#include "../sensors/hw_mpu9x50.h"
 #include "../sensors/imu.h"
 #include "../sensors/imu_tests.h"
 #include "../sensors/mpu9x50.h"
