@@ -58,10 +58,10 @@
 #include "../Peripherals/misc.h"
 
 #include "../Sensors/hw_mpu9x50.h"
+#include "../Sensors/imu.h"
+#include "../Sensors/imu_tests.h"
 #include "../Sensors/mpu9x50.h"
 
-#include "../Sensors/IMU.h"
-#include "../Sensors/IMUTests.h"
 
 #define DELAY 0
 

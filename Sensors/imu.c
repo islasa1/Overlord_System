@@ -5,7 +5,7 @@
  *      Author: moncadac
  */
 
-#include "IMU.h"
+#include "imu.h"
 
 #include <stdint.h>
 #include <stdbool.h>

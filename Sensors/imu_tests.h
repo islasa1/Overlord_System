@@ -5,8 +5,8 @@
  *      Author: moncadac
  */
 
-#ifndef SENSORS_IMUTESTS_H_
-#define SENSORS_IMUTESTS_H_
+#ifndef SENSORS_IMU_TESTS_H_
+#define SENSORS_IMU_TESTS_H_
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,4 +16,4 @@
 
 bool IMUTest1(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst);
 
-#endif /* SENSORS_IMUTESTS_H_ */
+#endif /* SENSORS_IMU_TESTS_H_ */

@@ -5,7 +5,8 @@
  *      Author: moncadac
  */
 
-#include "IMUTests.h"
+#include "imu_tests.h"
+
 #include <stdint.h>
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
@@ -13,10 +14,10 @@
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/interrupt.h"
-#include "./IMU.h"
 #include "sensorlib/i2cm_drv.h"
 #include "sensorlib/ak8963.h"
 #include "./mpu9x50.h"
+#include "imu.h"
 
 //*****************************************************************************
 //

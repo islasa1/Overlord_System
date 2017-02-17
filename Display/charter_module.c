@@ -26,11 +26,11 @@
 
 #include "charter_module.h"
 
+#include "axis_logo128x128.h"
+#include "battery_icon.h"
+#include "charge_icon.h"
 // Icons
 #include "neural.h"
-#include "AxisLogo128x128.h"
-#include "BatteryIcon.h"
-#include "ChargeIcon.h"
 
 // Display defines
 #define X_MAX                           (GrContextDpyWidthGet(&g_sTFTContext) - 1)
