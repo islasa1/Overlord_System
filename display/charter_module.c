@@ -6,6 +6,8 @@
  *      Author: Anthony
  */
 
+#include "charter_module.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
@@ -24,12 +26,9 @@
 #include "utils/ustdlib.h"
 #include "utils/sine.h"
 
-#include "charter_module.h"
-
 #include "axis_logo128x128.h"
 #include "battery_icon.h"
 #include "charge_icon.h"
-// Icons
 #include "neural.h"
 
 // Display defines

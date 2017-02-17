@@ -16,8 +16,9 @@
 #include "driverlib/interrupt.h"
 #include "sensorlib/i2cm_drv.h"
 #include "sensorlib/ak8963.h"
-#include "./mpu9x50.h"
+
 #include "imu.h"
+#include "mpu9x50.h"
 
 //*****************************************************************************
 //

@@ -23,14 +23,16 @@
 //
 //*****************************************************************************
 
+#include "mpu9x50.h"
+
 #include <stdint.h>
 #include "sensorlib/hw_ak8975.h"
 #include "sensorlib/hw_ak8963.h"
-#include "./hw_mpu9x50.h"
 #include "sensorlib/i2cm_drv.h"
 #include "sensorlib/ak8975.h"
 #include "sensorlib/ak8963.h"
-#include "./mpu9x50.h"
+
+#include "hw_mpu9x50.h"
 
 //*****************************************************************************
 //

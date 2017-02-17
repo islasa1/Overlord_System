@@ -5,10 +5,10 @@
  *      Author: Ryan
  */
 
+#include "i2c.h"
+
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "i2c.h"
 
 #include "inc/hw_i2c.h"
 #include "inc/hw_memmap.h"

@@ -24,11 +24,10 @@
 #include "sensorlib/hw_ak8963.h"
 #include "sensorlib/ak8963.h"
 
-#include "../Peripherals/gpio.h"
-#include "../Peripherals/i2c.h"
-
-#include "../Sensors/hw_mpu9x50.h"
-#include "../Sensors/mpu9x50.h"
+#include "../peripherals/gpio.h"
+#include "../peripherals/i2c.h"
+#include "hw_mpu9x50.h"
+#include "mpu9x50.h"
 
 //*****************************************************************************
 //

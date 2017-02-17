@@ -66,15 +66,15 @@
 #include "utils/uartstdio.h"
 #include "utils/cmdline.h"
 
-#include "../Peripherals/gpio.h"
-#include "../Peripherals/i2c.h"
-#include "../Peripherals/misc.h"
+#include "../peripherals/gpio.h"
+#include "../peripherals/i2c.h"
+#include "../peripherals/misc.h"
+#include "../Power/bq27441.h"
 
-#include "../Power/BQ27441.h"
-#include "../Sensors/hw_mpu9x50.h"
-#include "../Sensors/imu.h"
-#include "../Sensors/imu_tests.h"
-#include "../Sensors/mpu9x50.h"
+#include "../sensors/hw_mpu9x50.h"
+#include "../sensors/imu.h"
+#include "../sensors/imu_tests.h"
+#include "../sensors/mpu9x50.h"
 
 
 #define DELAY 0

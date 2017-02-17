@@ -8,7 +8,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "HW_BQ27441.h"
+#include "hw_bq27441.h"
 #include "sensorlib/i2cm_drv.h"
 
 #ifndef __POWER_BQ27441_H__

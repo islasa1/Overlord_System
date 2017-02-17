@@ -9,7 +9,7 @@
 #ifndef __DISPLAY_CHARTERMODULE_H__
 #define __DISPLAY_CHARTERMODULE_H__
 
-#include "st7735r128x128x18.h"
+#include "../peripherals/st7735r128x128x18.h"
 
 #define PWM_SYS_PERIPH      SYSCTL_PERIPH_GPIOC
 #define PWM_GPIO_CONFIG     GPIO_PC4_M0PWM6
