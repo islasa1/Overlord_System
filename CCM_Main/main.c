@@ -27,7 +27,7 @@
 #include <driverlib/rom.h>
 #include <driverlib/sysctl.h>
 
-#include "sensorlib/i2cm_drv.h"
+#include <sensorlib/i2cm_drv.h>
 
 
 #include <ctype.h>
@@ -132,9 +132,10 @@ __error__(char *pcFilename, uint32_t ui32Line)
 #endif
 
 
+
 //*****************************************************************************
 //
-// Define BQ27510G3 I2C Address.
+// Define BQ27441 I2C Address.
 //
 //*****************************************************************************
 #define BQ27441_I2C_BASE         I2C1_BASE
@@ -150,7 +151,7 @@ tI2CMInstance g_sBQ27441I2CInst;
 
 //*****************************************************************************
 //
-// Global instance structure for the BQ27510G3 sensor driver.
+// Global instance structure for the BQ27441 sensor driver.
 //
 //*****************************************************************************
 tBQ27441 g_sBQ27441Inst;
@@ -160,6 +161,23 @@ tBQ27441 g_sBQ27441Inst;
 // Global flags for the BQ27441 to indicate data ready and error state
 //
 //*****************************************************************************
+typedef struct {
+    float fVoltage;
+    float fTemperature;
+    int16_t i16NominalAvailableCapacity;
+    int16_t i16FullAvailableCapacity;
+    int16_t i16RemainingCapacity;
+    int16_t i16FullChargeCapacity;
+    int16_t i16AverageCurrent;
+    int16_t i16StandbyCurrent;
+    int16_t i16MaxLoadCurrent;
+    int16_t i16AveragePower;
+    int16_t i16StateOfCharge;
+    float fInternalTemperature;
+    int16_t i16StateOfHealth;
+} tBatteryInfo;
+
+tBatteryInfo g_sBatteryInfo;
 volatile uint_fast8_t g_vui8CmdFlag, g_vui8DataFlag, g_vui8ErrorFlag;
 
 //*****************************************************************************
@@ -167,11 +185,11 @@ volatile uint_fast8_t g_vui8CmdFlag, g_vui8DataFlag, g_vui8ErrorFlag;
 // Global flags for the BQ27441 to indicate data ready and error state
 //
 //*****************************************************************************
-float g_fTemperature, g_fVoltage;
+float g_fTemperature, g_fVoltage, g_fNom;
 
 //*****************************************************************************
 //
-// BQ27510G3 Sensor callback function.  Called at the end of BQ27510G3 sensor
+// BQ27441 Sensor callback function.  Called at the end of BQ27441 sensor
 // driver transactions. This is called from I2C interrupt context. Therefore,
 // we just set a flag and let main do the bulk of the computations and display.
 //
@@ -184,8 +202,21 @@ void BQ27441DataAppCallback(void* pvCallbackData, uint_fast8_t ui8Status)
         // If I2C transaction is successful, set data ready flag.
         //
         g_vui8DataFlag = 1;
-        BQ27441DataBatteryVoltageGetFloat (&g_sBQ27441Inst, &g_fTemperature);
-        BQ27441DataBatteryTemperatureGetFloat (&g_sBQ27441Inst, &g_fVoltage);
+
+        BQ27441DataBatteryVoltageGetFloat (&g_sBQ27441Inst, &(g_sBatteryInfo.fVoltage));
+        BQ27441DataBatteryTemperatureGetFloat (&g_sBQ27441Inst, &(g_sBatteryInfo.fTemperature));
+        BQ27441DataNominalAvailableCapacityGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16NominalAvailableCapacity));
+        BQ27441DataFullAvailableCapacityGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16FullAvailableCapacity));
+        BQ27441DataRemainingCapacityGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16RemainingCapacity));
+        BQ27441DataFullChargeCapacityGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16FullChargeCapacity));
+        BQ27441DataAverageCurrentGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16AverageCurrent));
+        BQ27441DataStandbyCurrentGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16StandbyCurrent));
+        BQ27441DataMaxLoadCurrentGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16MaxLoadCurrent));
+        BQ27441DataAveragePowerGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16AveragePower));
+        BQ27441DataStateOfChargeGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16StateOfCharge));
+        BQ27441DataInternalTemperatureGetFloat(&g_sBQ27441Inst, &(g_sBatteryInfo.fInternalTemperature));
+        BQ27441DataStateOfHealthGetRaw(&g_sBQ27441Inst, &(g_sBatteryInfo.i16StateOfHealth));
+
         BQ27441DataRead(&g_sBQ27441Inst, BQ27441DataAppCallback, &g_sBQ27441Inst);
     }
     else
@@ -197,7 +228,7 @@ void BQ27441DataAppCallback(void* pvCallbackData, uint_fast8_t ui8Status)
     }
 }
 
-void BQ27441CmdAppCallback(void* pvCallbackData, uint_fast8_t ui8Status)
+void BQ27441AppCallback(void* pvCallbackData, uint_fast8_t ui8Status)
 {
     if(ui8Status == I2CM_STATUS_SUCCESS)
     {
@@ -218,7 +249,7 @@ void BQ27441CmdAppCallback(void* pvCallbackData, uint_fast8_t ui8Status)
 //*****************************************************************************
 //
 // Called by the NVIC as a result of I2C8 Interrupt. I2C8 is the I2C connection
-// to the BQ27510G3 fuel guage.
+// to the BQ27441 fuel guage.
 //
 // This handler is installed in the vector table for I2C8 by default.  To use
 // the Fuel Tank on BoosterPack 1 interface change the startup file to place
@@ -237,7 +268,7 @@ void BQ27441I2CIntHandler(void)
 
 //*****************************************************************************
 //
-// Function to wait for the BQ27510G3 transactions to complete.
+// Function to wait for the BQ27441 transactions to complete.
 //
 //*****************************************************************************
 uint_fast8_t BQ27441AppI2CWait(void)
@@ -429,7 +460,7 @@ int main(void)
     I2CIntRegister(BQ27441_I2C_BASE, BQ27441I2CIntHandler);
 
     I2CMInit (&g_sBQ27441I2CInst, BQ27441_I2C_BASE, BQ27441_I2C_INT, 0xff, 0xff, ROM_SysCtlClockGet ());
-    BQ27441Init (&g_sBQ27441Inst, &g_sBQ27441I2CInst, BQ27441_I2C_ADDRESS, BQ27441CmdAppCallback, &g_sBQ27441Inst);
+    BQ27441Init (&g_sBQ27441Inst, &g_sBQ27441I2CInst, BQ27441_I2C_ADDRESS, BQ27441AppCallback, &g_sBQ27441Inst);
 
     MAP_IntMasterEnable();
 
@@ -458,6 +489,4 @@ int main(void)
     {
         TimerEnable(TIMER0_BASE, TIMER_A);
     }
-
-
 }
