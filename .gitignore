@@ -1,2 +1,4 @@
 /Debug/
 /.launches/
+*.mk
+/Docs/
