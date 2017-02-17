@@ -36,7 +36,7 @@ bool I2CBurstRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrReadDa
 bool I2CBurstWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8SendData[], uint32_t ui32Size);
 bool I2CRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrData);
 bool I2CWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8Data);
-
+bool I2CClearBus(uint32_t ui32Base);
 //*****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.

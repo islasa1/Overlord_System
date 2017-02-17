@@ -33,6 +33,7 @@ void ResetISR(void);
 static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
+extern void I2C1Handler (void);
 
 //*****************************************************************************
 //

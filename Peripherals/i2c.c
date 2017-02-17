@@ -5,6 +5,9 @@
  *      Author: Ryan
  */
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #include "i2c.h"
 
 #include "inc/hw_i2c.h"
@@ -18,10 +21,12 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
 
-void
-I2CInit(uint32_t ui32Base, bool bSpeed) {
-  switch(ui32Base) {
-    case I2C0_BASE: {
+void I2CInit(uint32_t ui32Base, bool bSpeed)
+{
+  switch(ui32Base)
+  {
+    case I2C0_BASE:
+    {
       //
       // Enable Peripherals used by I2C0
       //
@@ -43,7 +48,8 @@ I2CInit(uint32_t ui32Base, bool bSpeed) {
 
       break;
     }
-    case I2C1_BASE: {
+    case I2C1_BASE:
+    {
       //
       // Enable Peripherals used by I2C1
       //
@@ -65,7 +71,8 @@ I2CInit(uint32_t ui32Base, bool bSpeed) {
 
       break;
     }
-    case I2C2_BASE: {
+    case I2C2_BASE:
+    {
       //
       // Enable Peripherals used by I2C2
       //
@@ -87,7 +94,8 @@ I2CInit(uint32_t ui32Base, bool bSpeed) {
 
       break;
     }
-    case I2C3_BASE: {
+    case I2C3_BASE:
+    {
       //
       // Enable Peripherals used by I2C3
       //
@@ -109,6 +117,81 @@ I2CInit(uint32_t ui32Base, bool bSpeed) {
 
       break;
     }
+#if defined(GPIO_PG2_I2C4SCL) && defined(GPIO_PG3_I2C4SDA)
+    case I2C4_BASE: {
+      ui32PeriphGPIO = SYSCTL_PERIPH_GPIOG;
+      ui32PinConfigureSCL = GPIO_PG2_I2C4SCL;
+      ui32PinConfigureSDA = GPIO_PG3_I2C4SDA;
+      ui32GPIOBase = GPIO_PORTG_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_2;
+      ui8GPIOPinSDA = GPIO_PIN_3;
+      ui32PeriphI2C = SYSCTL_PERIPH_I2C4;
+      break;
+    }
+#endif
+#if defined(GPIO_PG6_I2C5SCL) && defined(GPIO_PG7_I2C5SDA)
+    case I2C5_BASE: {
+      ui32PeriphGPIO = SYSCTL_PERIPH_GPIOG;
+      ui32PinConfigureSCL = GPIO_PG6_I2C5SCL;
+      ui32PinConfigureSDA = GPIO_PG7_I2C5SDA;
+      ui32GPIOBase = GPIO_PORTG_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_6;
+      ui8GPIOPinSDA = GPIO_PIN_7;
+      ui32PeriphI2C = SYSCTL_PERIPH_I2C5;
+      break;
+    }
+#endif
+#if defined(GPIO_PA6_I2C6SCL) && defined(GPIO_PA7_I2C6SDA)
+    case I2C6_BASE: {
+      ui32PeriphGPIO = SYSCTL_PERIPH_GPIOA;
+      ui32PinConfigureSCL = GPIO_PA6_I2C6SCL;
+      ui32PinConfigureSDA = GPIO_PA7_I2C6SDA;
+      ui32GPIOBase = GPIO_PORTA_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_6;
+      ui8GPIOPinSDA = GPIO_PIN_7;
+      ui32PeriphI2C = SYSCTL_PERIPH_I2C6;
+      break;
+    }
+#endif
+#if defined(GPIO_PD0_I2C7SCL) && defined(GPIO_PD1_I2C7SDA)
+    case I2C7_BASE: {
+      ui32PeriphGPIO = SYSCTL_PERIPH_GPIOD;
+      ui32PinConfigureSCL = GPIO_PD0_I2C7SCL;
+      ui32PinConfigureSDA = GPIO_PD1_I2C7SDA;
+      ui32GPIOBase = GPIO_PORTD_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_0;
+      ui8GPIOPinSDA = GPIO_PIN_1;
+      ui32PeriphI2C = SYSCTL_PERIPH_I2C7;
+      break;
+    }
+#endif
+#if defined(GPIO_PD2_I2C8SCL) && defined(GPIO_PD3_I2C8SDA)
+    case I2C8_BASE: {
+      ui32PeriphGPIO = SYSCTL_PERIPH_GPIOD;
+      ui32PinConfigureSCL = GPIO_PD2_I2C8SCL;
+      ui32PinConfigureSDA = GPIO_PD3_I2C8SDA;
+      ui32GPIOBase = GPIO_PORTD_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_2;
+      ui8GPIOPinSDA = GPIO_PIN_3;
+      ui32PeriphI2C = SYSCTL_PERIPH_I2C8;
+      break;
+    }
+#endif
+#if defined(GPIO_PA0_I2C9SCL) && defined(GPIO_PA1_I2C9SDA)
+    case I2C9_BASE: {
+      ui32PeriphGPIO = SYSCTL_PERIPH_GPIOA;
+      ui32PinConfigureSCL = GPIO_PA0_I2C9SCL;
+      ui32PinConfigureSDA = GPIO_PA1_I2C9SDA;
+      ui32GPIOBase = GPIO_PORTA_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_0;
+      ui8GPIOPinSDA = GPIO_PIN_1;
+      ui32PeriphI2C = SYSCTL_PERIPH_I2C9;
+      break;
+    }
+#endif
+    default: {
+      return;
+    }
   }
 
   //
@@ -116,8 +199,9 @@ I2CInit(uint32_t ui32Base, bool bSpeed) {
   //
   MAP_I2CMasterInitExpClk(ui32Base, MAP_SysCtlClockGet(), bSpeed);
 }
-bool
-I2CBurstRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrReadData, uint32_t ui32Size) {
+
+bool I2CBurstRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrReadData, uint32_t ui32Size)
+{
   //
   // Use I2C single read if theres only 1 item to receive
   //
@@ -195,8 +279,9 @@ I2CBurstRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrReadData, u
   //
   return true;
 }
-bool
-I2CBurstWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8SendData[], uint32_t ui32Size) {
+
+bool I2CBurstWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8SendData[], uint32_t ui32Size)
+{
   //
   // Use I2C single write if theres only 1 item to send
   //
@@ -275,8 +360,9 @@ I2CBurstWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8SendData[], ui
   //
   return true;
 }
-bool
-I2CRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrData) {
+
+bool I2CRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrData)
+{
   //
   // Tell the master module what address it will place on the bus when
   // reading from the slave.
@@ -325,8 +411,9 @@ I2CRead(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t* ui8ptrData) {
   //
   return true;
 }
-bool
-I2CWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8SendData) {
+
+bool I2CWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8SendData)
+{
   //
   //
   // Tell the master module what address it will place on the bus when
@@ -375,4 +462,110 @@ I2CWrite(uint32_t ui32Base, uint8_t ui8SlaveAddr, uint8_t ui8SendData) {
   // Return 1 if there is no error.
   //
   return true;
+}
+
+
+bool I2CClearBus(uint32_t ui32Base)
+{
+  uint8_t clkPulseIndex;
+  uint32_t ui32GPIOBase;
+  uint8_t  ui8GPIOPinSCL, ui8GPIOPinSDA;
+   
+  switch(ui32Base) {
+    case I2C0_BASE: {
+      ui32GPIOBase = GPIO_PORTB_BASE; 
+      ui8GPIOPinSCL = GPIO_PIN_2;
+      ui8GPIOPinSDA = GPIO_PIN_3;
+      break;
+    }
+    case I2C1_BASE: {
+      ui32GPIOBase = GPIO_PORTA_BASE; 
+      ui8GPIOPinSCL = GPIO_PIN_6;
+      ui8GPIOPinSDA = GPIO_PIN_7;
+      break;
+    }
+    case I2C2_BASE: {
+      ui32GPIOBase = GPIO_PORTE_BASE; 
+      ui8GPIOPinSCL = GPIO_PIN_4;
+      ui8GPIOPinSDA = GPIO_PIN_5;
+      break;
+    }
+    case I2C3_BASE: {
+      ui32GPIOBase = GPIO_PORTD_BASE; 
+      ui8GPIOPinSCL = GPIO_PIN_0;
+      ui8GPIOPinSDA = GPIO_PIN_1;
+      break;
+    }
+    case I2C4_BASE: {
+      ui32GPIOBase = GPIO_PORTG_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_2;
+      ui8GPIOPinSDA = GPIO_PIN_3;
+      break;
+    }
+    case I2C5_BASE: {
+      ui32GPIOBase = GPIO_PORTG_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_6;
+      ui8GPIOPinSDA = GPIO_PIN_7;
+      break;
+    }
+    case I2C6_BASE: {
+      ui32GPIOBase = GPIO_PORTA_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_6;
+      ui8GPIOPinSDA = GPIO_PIN_7;
+      break;
+    }
+    case I2C7_BASE: {
+      ui32GPIOBase = GPIO_PORTD_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_0;
+      ui8GPIOPinSDA = GPIO_PIN_1;
+      break;
+    }
+    case I2C8_BASE: {
+      ui32GPIOBase = GPIO_PORTD_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_2;
+      ui8GPIOPinSDA = GPIO_PIN_3;
+      break;
+    }
+    case I2C9_BASE: {
+      ui32GPIOBase = GPIO_PORTA_BASE;
+      ui8GPIOPinSCL = GPIO_PIN_0;
+      ui8GPIOPinSDA = GPIO_PIN_1;
+      break;
+    }
+  }
+
+  if (MAP_GPIOPinRead(ui32GPIOBase, ui8GPIOPinSDA)) return true;
+
+  //
+  // Take over the SCL line
+  //
+  MAP_GPIODirModeSet(ui32GPIOBase, ui8GPIOPinSCL, GPIO_DIR_MODE_OUT);
+  
+  //
+  // Clock through the bus hold up
+  //
+  for(clkPulseIndex = 0; clkPulseIndex < 10; clkPulseIndex++) { // 9nth cycle acts as a NACK
+    // Master tries to assert a logic 1 on the SDA line
+    // Check if the SDA line is high
+    if (MAP_GPIOPinRead(ui32GPIOBase, ui8GPIOPinSDA)) {
+      // The SDA line has been released.
+      break;
+    } else {
+      // Master still sees a Logic 0 on SDA
+      // Generate a clock pulse on SCL (1-0-1 transition) at ~100 kHz
+      MAP_GPIOPinWrite(ui32GPIOBase, ui8GPIOPinSCL, ui8GPIOPinSCL); // 1
+      MAP_SysCtlDelay(MAP_SysCtlClockGet() / 200000);               // 5uS pause
+      MAP_GPIOPinWrite(ui32GPIOBase, ui8GPIOPinSCL, 0x0);           // 0
+      MAP_SysCtlDelay(MAP_SysCtlClockGet() / 200000);               // 5uS pause
+      MAP_GPIOPinWrite(ui32GPIOBase, ui8GPIOPinSCL, ui8GPIOPinSCL); // 1
+    }
+  }
+  
+  //
+  // Reset the pins for I2C operation
+  //
+  MAP_GPIODirModeSet(ui32GPIOBase, ui8GPIOPinSCL, GPIO_DIR_MODE_HW);
+    
+  return (bool) MAP_GPIOPinRead(ui32GPIOBase, ui8GPIOPinSDA);
+
 }
