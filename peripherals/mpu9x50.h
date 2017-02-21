@@ -28,6 +28,20 @@
 
 //*****************************************************************************
 //
+// Necessary includes so user does not need to find proper order
+//
+//*****************************************************************************
+#include <stdint.h>
+#include "sensorlib/hw_ak8975.h"
+#include "sensorlib/hw_ak8963.h"
+#include "sensorlib/i2cm_drv.h"
+#include "sensorlib/ak8975.h"
+#include "sensorlib/ak8963.h"
+
+#include "hw_mpu9x50.h"
+
+//*****************************************************************************
+//
 // If building with a C++ compiler, make all of the definitions in this header
 // have a C binding.
 //

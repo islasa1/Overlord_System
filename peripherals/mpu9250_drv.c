@@ -5,7 +5,7 @@
  *      Author: moncadac
  */
 
-#include "imu.h"
+#include "mpu9250_drv.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -26,8 +26,8 @@
 
 #include "../peripherals/gpio.h"
 #include "../peripherals/i2c.h"
-#include "hw_mpu9x50.h"
-#include "mpu9x50.h"
+#include "../peripherals/hw_mpu9x50.h"
+#include "../peripherals/mpu9x50.h"
 
 //*****************************************************************************
 //

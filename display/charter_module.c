@@ -19,6 +19,7 @@
 #include "driverlib/debug.h"
 #include "driverlib/fpu.h"
 #include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
 
 #include "grlib/grlib.h"
 #include "grlib/offscr8bpp.c"
@@ -463,7 +464,7 @@ void CharterTest_1(void)
     GrRectFill(&g_sOffScreenContext, &sRect);
     OffScreenFlush(&g_sTFTContext);
 
-    SysCtlDelay(SysCtlClockGet() / 2 / 3);
+    MAP_SysCtlDelay(MAP_SysCtlClockGet() / 2 / 3);
 
     //
     // Draw to main screen anyways since it is an image
@@ -481,7 +482,7 @@ void CharterTest_1(void)
         CharterShowBattPercent(&g_sOffScreenContext, (uint8_t) percent, charging < 0x0f);
         CharterDrawHeading(&g_sOffScreenContext, percent * 360 / 100);
         OffScreenFlush(&g_sTFTContext);
-        SysCtlDelay(SysCtlClockGet() * 0.005);
+        MAP_SysCtlDelay(MAP_SysCtlClockGet() * 0.005);
         percent += 0.5;
         percent = percent > 100 ? percent - 100 : percent;
         charging = (charging <<= 1) == 0 ? 1 : charging;
@@ -510,7 +511,7 @@ void CharterTest_2(void)
         {
             GrImageDraw(&g_sOffScreenContext, g_pui8Neural[index], 0, 0);
             OffScreenFlush(&g_sTFTContext);
-            SysCtlDelay(SysCtlClockGet() * 0.1 / 10.0);
+            MAP_SysCtlDelay(MAP_SysCtlClockGet() * 0.1 / 10.0);
         }
     }
 }

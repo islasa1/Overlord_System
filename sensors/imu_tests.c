@@ -14,11 +14,13 @@
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/interrupt.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
 #include "sensorlib/i2cm_drv.h"
 #include "sensorlib/ak8963.h"
 
-#include "imu.h"
-#include "mpu9x50.h"
+#include "../peripherals/mpu9x50.h"
+#include "../peripherals/mpu9250_drv.h"
 
 //*****************************************************************************
 //
@@ -58,12 +60,12 @@ IMUTest1(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst)
     //
     MPU9X50Read(psMPU9X50Inst, MPU9X50_O_WHO_AM_I, &ui8WhoAmI, 1,
                 MPU9X50AppCallback, psMPU9X50Inst);
-    SysCtlDelay(SysCtlClockGet() / 100);
+    MAP_SysCtlDelay(MAP_SysCtlClockGet() / 100);
     while(!(ui8WhoAmI == 0x71))
     {
         MPU9X50Read(psMPU9X50Inst, MPU9X50_O_WHO_AM_I, &ui8WhoAmI, 1,
                     MPU9X50AppCallback, psMPU9X50Inst);
-        SysCtlDelay(SysCtlClockGet() / 100);
+        MAP_SysCtlDelay(MAP_SysCtlClockGet() / 100);
     }
 
     //
@@ -72,12 +74,12 @@ IMUTest1(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst)
     //
     AK8963Read(psAK8963Inst, AK8963_O_WIA, &ui8WhoAmI, 1,
                AK8963AppCallback, psAK8963Inst);
-    SysCtlDelay(SysCtlClockGet() / 100);
+    MAP_SysCtlDelay(MAP_SysCtlClockGet() / 100);
     while(!(ui8WhoAmI == 0x48))
     {
         AK8963Read(psAK8963Inst, AK8963_O_WIA, &ui8WhoAmI, 1,
                    AK8963AppCallback, psAK8963Inst);
-        SysCtlDelay(SysCtlClockGet() / 100);
+        MAP_SysCtlDelay(MAP_SysCtlClockGet() / 100);
 
     }
 

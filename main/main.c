@@ -41,9 +41,9 @@
 
 #include "sensorlib/hw_ak8963.h"
 #include "sensorlib/hw_ak8975.h"
+#include "sensorlib/i2cm_drv.h"
 #include "sensorlib/ak8963.h"
 #include "sensorlib/ak8975.h"
-#include "sensorlib/i2cm_drv.h"
 #include "sensorlib/magneto.h"
 
 #include "utils/uartstdio.h"
@@ -55,10 +55,10 @@
 #include "../peripherals/i2c.h"
 #include "../peripherals/misc.h"
 #include "../peripherals/hw_mpu9x50.h"
+#include "../peripherals/mpu9x50.h"
+#include "../peripherals/mpu9250_drv.h"
 
-#include "../sensors/imu.h"
 #include "../sensors/imu_tests.h"
-#include "../sensors/mpu9x50.h"
 
 
 #define DELAY 0
@@ -71,12 +71,12 @@
 #define I2C_SPEED I2C_SPEED_400
 
 // MPU9X50
-#define MPU9X50_X_AXIS X_AXIS // Array index that contains corrected x-axis when mounted
-#define MPU9X50_Y_AXIS Z_AXIS // Array index that contains corrected y-axis when mounted
-#define MPU9X50_Z_AXIS Y_AXIS // Array index that contains corrected z-axis when mounted
-#define MPU9X50_X_FLIP 0 // bool value (0/1) that negates raw x-axis value
-#define MPU9X50_Y_FLIP 1 // bool value (0/1) that negates raw y-axis value
-#define MPU9X50_Z_FLIP 1 // bool value (0/1) that negates raw z-axis value
+#define MPU9X50_X_AXIS X_AXIS   // Array index that contains corrected x-axis when mounted
+#define MPU9X50_Y_AXIS Z_AXIS   // Array index that contains corrected y-axis when mounted
+#define MPU9X50_Z_AXIS Y_AXIS   // Array index that contains corrected z-axis when mounted
+#define MPU9X50_X_FLIP 0        // bool value (0/1) that negates raw x-axis value
+#define MPU9X50_Y_FLIP 1        // bool value (0/1) that negates raw y-axis value
+#define MPU9X50_Z_FLIP 1        // bool value (0/1) that negates raw z-axis value
 #define MPU9X50_ROLL    0
 #define MPU9X50_PITCH   1
 #define MPU9X50_YAW     2
@@ -116,7 +116,7 @@ __error__(char *pcFilename, uint32_t ui32Line)
 #endif
 
 
-
+//# TODO: Clean up this code.
 //*****************************************************************************
 //
 // Define BQ27441 I2C Address.
@@ -443,7 +443,7 @@ int main(void)
     I2CInit(BQ27441_I2C_BASE, I2C_SPEED_400);
     I2CIntRegister(BQ27441_I2C_BASE, BQ27441I2CIntHandler);
 
-    I2CMInit (&g_sBQ27441I2CInst, BQ27441_I2C_BASE, BQ27441_I2C_INT, 0xff, 0xff, ROM_SysCtlClockGet ());
+    I2CMInit (&g_sBQ27441I2CInst, BQ27441_I2C_BASE, BQ27441_I2C_INT, 0xff, 0xff, MAP_SysCtlClockGet ());
     BQ27441Init (&g_sBQ27441Inst, &g_sBQ27441I2CInst, BQ27441_I2C_ADDRESS, BQ27441AppCallback, &g_sBQ27441Inst);
 
     MAP_IntMasterEnable();
