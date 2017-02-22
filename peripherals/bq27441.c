@@ -23,17 +23,6 @@
 
 //*****************************************************************************
 //
-// The application callback function that is called when I2C transactions to/from the
-// BQ27441 have completed.
-//
-//*****************************************************************************
-void
-AppCallback(void *pvCallbackData, uint_fast8_t ui8Status)
-{
-
-}
-//*****************************************************************************
-//
 // The callback function that is called when I2C transactions to/from the
 // BQ27441 have completed.
 //
