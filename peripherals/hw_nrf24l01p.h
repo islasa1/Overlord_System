@@ -323,9 +323,46 @@
 
 //*****************************************************************************
 //
-//
+// The following are defines for the nRF24L01+ SPI commands
 //
 //*****************************************************************************
-
+#define NRF24L01P_R_REGISTER    0x00    // Read cmd and status registers.
+                                        // [4:0] : 5 bit Register Map Address
+#define NRF24L01P_W_REGISTER    0x20    // Write cmd and status registers.
+                                        // [4:0] : 5 bit Register Map Address
+                                        // Executable in power down or standby
+#define NRF24L01P_R_RX_PAYLOAD  0x61    // Read RX-payload: 1-32 bytes. A read
+                                        // operation always starts at byte 0.
+                                        // Payload deleted from FIFO after it
+                                        // is read. Use in RX mode
+#define NRF24L01P_W_TX_PAYLOAD  0xA0    // Write TX-payload: 1-32 bytes. A write
+                                        // operation always starts at byte 0
+                                        // used in TX payload
+#define NRF24L01P_FLUSH_TX      0xE1    // Flush TX FIFO, used in TX mode
+#define NRF24L01P_FLUSH_RX      0xE2    // Flush RX FIFO, used in RX mode
+                                        // Should not be executed during
+                                        // transmission of acknowledge, that is,
+                                        // ack package will not be completed
+#define NRF24L01P_REUSE_TX_PL   0xE3    // Used for a PTX device
+                                        // Reuse last transmitted payload
+                                        // TX payload reuse is active until
+                                        // W_TX_PAYLOAD or FLUSH_TX is executed
+                                        // TX payload reuse must not be activated
+                                        // or deactivated during package trans.
+#define NRF24L01P_R_RX_PL_WID   0x60    // Read RX payload width for the top
+                                        // R_RX_PAYLOAD in the RX FIFO
+                                        // Note: Flush RX FIFO if > 32 bytes
+#define NRF24L01P_W_ACK_PAYLOAD 0xA1    // Used in RX mode
+                                        // Write Payload to be transmitted
+                                        // together with ACK packet on pipe [2:0]
+                                        // Maximum three ACK packet payloads can
+                                        // be pending. Payloads with same pipe
+                                        // are handled using FIFO principle.
+                                        // Write payload: 1-32 bytes, start at 0
+#define NRF24L01P_W_TX_PAYLOAD_NOACK                                          \
+                                0xB0    // Used in TX mode. Disables AUTOACK on
+                                        // this specific packet
+#define NRF24L01P_NOP           0xFF    // No Operation. Might be used to read
+                                        // the STATUS register
 
 #endif /* __PERIPHERALS_HW_NRF24L01P_H__ */
