@@ -11,7 +11,7 @@
 
 //*****************************************************************************
 //
-// Structure containing all the information on about the battery
+// Structure containing all the information about the battery
 //
 //*****************************************************************************
 typedef struct {

@@ -31,6 +31,13 @@
 
 //*****************************************************************************
 //
+//! \addtogroup DIPS_Module_api
+//! @{
+//
+//*****************************************************************************
+
+//*****************************************************************************
+//
 // Define BQ27441 I2C Address.
 //
 //*****************************************************************************
@@ -195,8 +202,14 @@ void PeriodicTimerIntHandler (void)
 
 //*****************************************************************************
 //
-// Function to completely initialize the battery including the I2C pins,
-// the I2C interrupts, and the battery itself
+//! Initializes the battery.
+//!
+//! This function initializes the battery pack, including the I2C interrupts,
+//! I2C master instance, the BQ27441, and the periodic interrupt timer.
+//! This initializes the battery information structure and prepares for
+//! future data reads based on when the periodic timer interrupts occur.
+//!
+//! \return None.
 //
 //*****************************************************************************
 void BatteryInit (void)
@@ -217,3 +230,10 @@ void BatteryInit (void)
     //
     timerAPeriodicIntInit(TIMER1_BASE, 2, 0xE0, PeriodicTimerIntHandler);
 }
+
+//*****************************************************************************
+//
+// Close the Doxygen group.
+//! @}
+//
+//*****************************************************************************
