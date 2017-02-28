@@ -208,8 +208,6 @@ void CharterInit(void)
     g_sBattPercentRect.i16YMin = 0;
     g_sBattPercentRect.i16YMax = 13;
 
-
-
     //
     // Change foreground for white text.
     //
@@ -263,23 +261,23 @@ void CharterSplashScreen(void)
 //*****************************************************************************
 //! Display battery bar.
 //!
-//! \param percentage is the integer value of the current percentage to display
+//! \param ui8Percentage is the integer value of the current ui8Percentage to display
 //! [0 - 100].
 //!
-//! This function will draw the given percentage with a battery symbol overlay
+//! This function will draw the given ui8Percentage with a battery symbol overlay
 //! onto the display screen
 //!
 //! \return None.
 //
 //*****************************************************************************
-void CharterShowBattPercent(tContext *psContext, uint8_t percentage, bool isCharging)
+void CharterShowBattPercent(tContext *psContext, uint8_t ui8Percentage, bool isCharging)
 {
     char percentStr[6];
 
     //
     // Put the percent string
     //
-    usprintf(percentStr, "%u%%", percentage);
+    usprintf(percentStr, "%u%%", ui8Percentage);
     GrContextForegroundSet(psContext, ClrBlack);
     GrRectFill(psContext, &g_sBattPercentRect);
 
@@ -291,15 +289,15 @@ void CharterShowBattPercent(tContext *psContext, uint8_t percentage, bool isChar
 
     uint32_t ui32Status;
 
-    if(percentage > 80)
+    if(ui8Percentage > 80)
     {
         ui32Status = ClrGreen;
     }
-    else if(percentage > 50)
+    else if(ui8Percentage > 50)
     {
         ui32Status = ClrOrange;
     }
-    else if(percentage > 25)
+    else if(ui8Percentage > 25)
     {
         ui32Status = ClrOrangeRed;
     }
@@ -310,7 +308,7 @@ void CharterShowBattPercent(tContext *psContext, uint8_t percentage, bool isChar
 
     GrContextForegroundSet(psContext, ui32Status);
     g_sBattImageRect.i16XMin = g_sBattImageRect.i16XMax -
-            (int16_t)((float) percentage / 100 * (BATT_ICON_DRAW_WIDTH - 1));
+            (int16_t)((float) ui8Percentage / 100 * (BATT_ICON_DRAW_WIDTH - 1));
     GrRectFill(psContext, &g_sBattImageRect);
 
     if(isCharging)
@@ -329,7 +327,6 @@ void CharterShowBattPercent(tContext *psContext, uint8_t percentage, bool isChar
     //
     GrContextForegroundSet(psContext, ClrWhite);
 }
-
 
 void CharterDrawHeadingArrow(tContext *psContext, tHeadingPosition *psHeading)
 {
@@ -403,7 +400,6 @@ void CharterDrawHeading(tContext *psContext, float angle)
     sHeading.i8YBaseOffset = HEADING_YOFFSET(HEADING_LENGTH -
                                              HEADING_ARROW_HEIGHT, angle);
 
-
     //
     // Calculate arrow offsets
     //
@@ -430,10 +426,39 @@ void CharterDrawHeading(tContext *psContext, float angle)
     psContext->ui32Foreground = ui32OrigColor;
     CharterDrawHeadingArrow(psContext, &sHeading);
     CharterDrawHeadingLine(psContext, &sHeading);
+
     //
     // Save previous state
     //
     sPrevHeading = sHeading;
+}
+
+//*****************************************************************************
+//! Draws heading and battery indicators to the screen.
+//!
+//! \param angle is a float that represents the angle of the current heading
+//! in degrees. If -1 is given, does not draw heading.
+//! \param ui8Percentage is an 8-bit integer representing the battery percentage
+//! to be drawn to the screen. If 0 is given, does not draw battery indicator.
+//!
+//! This function is meant to be the main function called by other modules so
+//! that they do not need references to the contexts or to manage the offscreen
+//! buffer.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void CharterDrawScreen(float angle, uint8_t ui8Percentage, bool isCharging)
+{
+    if(angle != -1)
+    {
+        CharterDrawHeading(&g_sOffScreenContext, angle);
+    }
+    if(ui8Percentage)
+    {
+        CharterShowBattPercent(&g_sOffScreenContext, ui8Percentage, isCharging);
+    }
+    OffScreenFlush(&g_sTFTContext);
 }
 
 //*****************************************************************************
@@ -479,9 +504,10 @@ void CharterTest_1(void)
     uint8_t charging = 0x01;
     while(1)
     {
-        CharterShowBattPercent(&g_sOffScreenContext, (uint8_t) percent, charging < 0x0f);
+        CharterDrawScreen(percent * 360 / 100, (uint8_t) percent, charging < 0x0f);
+/*        CharterShowBattPercent(&g_sOffScreenContext, (uint8_t) percent, charging < 0x0f);
         CharterDrawHeading(&g_sOffScreenContext, percent * 360 / 100);
-        OffScreenFlush(&g_sTFTContext);
+        OffScreenFlush(&g_sTFTContext);*/
         MAP_SysCtlDelay(MAP_SysCtlClockGet() * 0.005);
         percent += 0.5;
         percent = percent > 100 ? percent - 100 : percent;

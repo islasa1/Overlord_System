@@ -17,7 +17,10 @@
 #define PWM_GPIO_PIN        GPIO_PIN_4
 
 extern void CharterInit(void);
+extern void CharterClrScreen(tContext *psContext);
 extern void CharterSplashScreen(void);
+extern void CharterShowBattPercent(tContext *pscontext, uint8_t ui8Percentage, bool isCharging);
+extern void CharterDrawScreen(float angle, uint8_t ui8Percentage, bool isCharging);
 extern void CharterTest_1(void);
 extern void CharterTest_2(void);
 extern void CharterTest_3(void);
