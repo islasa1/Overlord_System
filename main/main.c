@@ -118,7 +118,6 @@ __error__(char *pcFilename, uint32_t ui32Line)
 #endif
 
 
-//# TODO: Clean up this code.
 //*****************************************************************************
 //
 // Define BQ27441 I2C Address.
