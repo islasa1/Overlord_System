@@ -426,7 +426,9 @@ void Timer0IntHandler(void)
     UpdateHeading(g_pfGyro, g_pfMag);
     UpdatePosition(g_pfAccel);
     g_pfHead[0] = GetRelativeHeading(0, 0);
-    CharterDrawScreen(g_pfHead[0] * RAD_TO_DEG, 0, 0);
+    CharterDrawHeading(g_pfHead[0]);
+    CharterShowBattPercent( 0, 0);
+    CharterFlush();
 }
 
 int main(void)
@@ -447,7 +449,7 @@ int main(void)
     UARTprintf("IMU Visualization Test\r\n");
     UARTprintf("Initializing...\r\n");
     IMUInit(&g_sMPU9X50Inst, &g_sAK8963Inst, &g_sI2CMInst);
-    CharterInit();
+    CharterInit(true);
     UARTprintf("Done\r\n");
 
     bool result;

@@ -77,6 +77,8 @@ uint8_t g_pui8OffScreenBuf[OFFSCREEN_BUF_SIZE];
 tContext g_sOffScreenContext;
 tDisplay g_sOffScreenDisplay;
 
+bool g_bOffscreen;
+
 //*****************************************************************************
 //
 // Create a palette for the off-screen buffer
@@ -144,10 +146,13 @@ typedef struct
 //!
 //! This function begins the initialization sequence for the Charter Module.
 //!
+//! \param offscreen is true for utilizing the display driver's offscreen
+//! capabilities.
+//!
 //! \return None.
 //
 //*****************************************************************************
-void CharterInit(void)
+void CharterInit(bool bOffScreen)
 {
 #ifdef PWM_DISPLAY
     MAP_SysCtlPeripheralEnable(PWM_SYS_PERIPH);
@@ -160,31 +165,35 @@ void CharterInit(void)
     MAP_GPIOPinTypePWM(PWM_GPIO_PORT, PWM_GPIO_PIN);
 #endif
 
+    g_bOffscreen = bOffScreen;
     //
     // Initialize the display driver
     //
     ST7735R128x128x18Init();
 
-    //
-    // Initialize the OffScreen display buffer and assign palette
-    //
-    GrOffScreen8BPPInit(&g_sOffScreenDisplay, g_pui8OffScreenBuf,
-                        g_sST7735R128x128x18.ui16Width,
-                        g_sST7735R128x128x18.ui16Height);
-    GrOffScreen8BPPPaletteSet(&g_sOffScreenDisplay, g_pui32Palette,
-                                  0, NUM_PALETTE_ENTRIES);
+    if(g_bOffscreen)
+    {
+        //
+        // Initialize the OffScreen display buffer and assign palette
+        //
+        GrOffScreen8BPPInit(&g_sOffScreenDisplay, g_pui8OffScreenBuf,
+                            g_sST7735R128x128x18.ui16Width,
+                            g_sST7735R128x128x18.ui16Height);
+        GrOffScreen8BPPPaletteSet(&g_sOffScreenDisplay, g_pui32Palette,
+                                      0, NUM_PALETTE_ENTRIES);
+
+        //
+        // Initialize the OffScreen context and display
+        //
+        GrContextInit(&g_sOffScreenContext, &g_sOffScreenDisplay);
+        GrContextFontSet(&g_sOffScreenContext, g_psFontFixed6x8);
+    }
 
     //
     // Initialize the graphics context
     //
     GrContextInit(&g_sTFTContext, &g_sST7735R128x128x18);
     GrContextFontSet(&g_sTFTContext, g_psFontFixed6x8);
-
-    //
-    // Initialize the OffScreen context and display
-    //
-    GrContextInit(&g_sOffScreenContext, &g_sOffScreenDisplay);
-    GrContextFontSet(&g_sOffScreenContext, g_psFontFixed6x8);
 
     //
     // Set Battery drawing rectangle
@@ -224,10 +233,19 @@ void CharterInit(void)
 //! \return None.
 //
 //*****************************************************************************
-void CharterClrScreen(tContext *psContext)
+void CharterClrScreen(void)
 {
     tRectangle sRect;
+    tContext *psContext;
 
+    if(g_bOffscreen)
+    {
+        psContext = &g_sOffScreenContext;
+    }
+    else
+    {
+        psContext = &g_sTFTContext;
+    }
     //
     // Draw pixels to the screen
     //
@@ -256,6 +274,7 @@ void CharterSplashScreen(void)
 {
     GrImageDraw(&g_sTFTContext, g_pui8AxisLogo, 0, 0);
     SysCtlDelay(SysCtlClockGet() * 2);
+    CharterClrScreen();
 }
 
 //*****************************************************************************
@@ -270,9 +289,19 @@ void CharterSplashScreen(void)
 //! \return None.
 //
 //*****************************************************************************
-void CharterShowBattPercent(tContext *psContext, uint8_t ui8Percentage, bool isCharging)
+void CharterShowBattPercent(uint8_t ui8Percentage, bool isCharging)
 {
     char percentStr[6];
+    tContext *psContext;
+
+    if(g_bOffscreen)
+    {
+        psContext = &g_sOffScreenContext;
+    }
+    else
+    {
+        psContext = &g_sTFTContext;
+    }
 
     //
     // Put the percent string
@@ -328,6 +357,9 @@ void CharterShowBattPercent(tContext *psContext, uint8_t ui8Percentage, bool isC
     GrContextForegroundSet(psContext, ClrWhite);
 }
 
+//
+// Internal Use
+//
 void CharterDrawHeadingArrow(tContext *psContext, tHeadingPosition *psHeading)
 {
     //
@@ -357,6 +389,9 @@ void CharterDrawHeadingArrow(tContext *psContext, tHeadingPosition *psHeading)
                               psHeading->i8YBaseArrowOffset);
 }
 
+//
+// Internal Use
+//
 void CharterDrawHeadingLine(tContext *psContext, tHeadingPosition *psHeading)
 {
     //
@@ -371,7 +406,7 @@ void CharterDrawHeadingLine(tContext *psContext, tHeadingPosition *psHeading)
 //*****************************************************************************
 //! Display angle to the screen.
 //!
-//! \param angle is a float value in degrees [0 - 360)
+//! \param angle is a float value in radians [0 - 2*pi)
 //!
 //! This function will draw an angle heading on the screen \em relative \em to
 //! the X-axis 0° from the display orientation.
@@ -379,12 +414,23 @@ void CharterDrawHeadingLine(tContext *psContext, tHeadingPosition *psHeading)
 //! \return None.
 //
 //*****************************************************************************
-void CharterDrawHeading(tContext *psContext, float angle)
+void CharterDrawHeading(float angle)
 {
     static tHeadingPosition sPrevHeading;
     tHeadingPosition sHeading;
+    tContext *psContext;
 
-    angle = -SENSORS_DEGREES_TO_RADIANS(angle);
+    if(g_bOffscreen)
+    {
+        psContext = &g_sOffScreenContext;
+    }
+    else
+    {
+        psContext = &g_sTFTContext;
+    }
+
+
+    angle = -(angle);
 
     //
     // Find tip location
@@ -434,31 +480,20 @@ void CharterDrawHeading(tContext *psContext, float angle)
 }
 
 //*****************************************************************************
-//! Draws heading and battery indicators to the screen.
+//! Flush the graphics controller
 //!
-//! \param angle is a float that represents the angle of the current heading
-//! in degrees. If -1 is given, does not draw heading.
-//! \param ui8Percentage is an 8-bit integer representing the battery percentage
-//! to be drawn to the screen. If 0 is given, does not draw battery indicator.
-//!
-//! This function is meant to be the main function called by other modules so
-//! that they do not need references to the contexts or to manage the offscreen
-//! buffer.
+//! This function will flush any graphics operations waiting from the graphics
+//! controller.
 //!
 //! \return None.
-//
 //*****************************************************************************
-void CharterDrawScreen(float angle, uint8_t ui8Percentage, bool isCharging)
+void CharterFlush(void)
 {
-    if(angle != -1)
+    // Nothing needs to be done if raw display
+    if(g_bOffscreen)
     {
-        CharterDrawHeading(&g_sOffScreenContext, angle);
+        OffScreenFlush(&g_sTFTContext);
     }
-    if(ui8Percentage)
-    {
-        CharterShowBattPercent(&g_sOffScreenContext, ui8Percentage, isCharging);
-    }
-    OffScreenFlush(&g_sTFTContext);
 }
 
 //*****************************************************************************
@@ -475,7 +510,7 @@ void CharterTest_1(void)
 {
     tRectangle sRect;
 
-    CharterInit();
+    CharterInit(true);
 
     //
     // Draw pixels to the screen
@@ -497,7 +532,7 @@ void CharterTest_1(void)
     CharterSplashScreen();
 
 
-    CharterClrScreen(&g_sOffScreenContext);
+    CharterClrScreen();
     OffScreenFlush(&g_sTFTContext);
 
     float percent = 0;
@@ -528,7 +563,7 @@ void CharterTest_1(void)
 //*****************************************************************************
 void CharterTest_2(void)
 {
-    CharterInit();
+    CharterInit(true);
 
     uint32_t index;
     while (1)
@@ -555,7 +590,7 @@ void CharterTest_2(void)
 void CharterTest_3(void)
 {
     char *testStr = "CHARTER TEST 3";
-    CharterInit();
+    CharterInit(true);
 
     //
     // Change foreground for white text.
