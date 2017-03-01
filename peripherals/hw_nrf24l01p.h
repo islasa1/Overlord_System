@@ -129,6 +129,9 @@
 // Note: LSByte is used if address width is below 5 bytes
 //
 //*****************************************************************************
+#define NRF24L01P_SETUP_AW_M    0x03
+#define NRF24L01P_SETUP_AW_S       0
+
 #define NRF24L01P_SETUP_AW_3_BYTES                                            \
                                 0x01    // RX/TX address field width 3 bytes
 #define NRF24L01P_SETUP_AW_4_BYTES                                            \
@@ -142,16 +145,24 @@
 // register.
 //
 //*****************************************************************************
+#define NRF24L01P_SETUP_RETR_ARD_M                                            \
+                                0xF0
+#define NRF24L01P_SETUP_RETR_ARD_S                                            \
+                                   4
 #define NRF24L01P_SETUP_RETR_ARD                                              \
                                 0xF0    // Auto Retransmit Delay
                                         // 0000 - Wait 250us
                                         // 0001 - Wait 500us
                                         // ...
                                         // 1111 - Wait 4000us
-#define NRF24L01P_SETUP_RETR_ARD_DELAY(us)                                               \
+#define NRF24L01P_SETUP_RETR_ARD_DELAY(us)                                    \
                                 (((uint8_t)(us / 250) - 1) << 4)              \
                                 & NRF24L01P_SETUP_RETR_ARD)
                                         // Wait us microseconds
+#define NRF24L01P_SETUP_RETR_ARC_M                                            \
+                                0x0F
+#define NRF24L01P_SETUP_RETR_ARC_S                                            \
+                                   0
 #define NRF24L01P_SETUP_RETR_ARC                                              \
                                 0x0F    // Retransmit time, up to 15 on AA fail
 
@@ -163,6 +174,8 @@
 // Masks available bits to set RF Channel Frequency (RF_CH)
 //
 //*****************************************************************************
+#define NRF24L01P_RF_CH_FREQ_M  0x3F
+#define NRF24L01P_RF_CH_FREQ_S     0
 #define NRF24L01P_RF_CH_FREQ    0x3F    // Sets the frequency channel nRF24L01+
                                         // operates on
 
@@ -188,12 +201,24 @@
                                         // '00' - 1Mbps
                                         // '01' - 2Mbps
                                         // '1X' - 250Kbps
+#define NRF24L01P_RF_SETUP_RF_PWR_M                                           \
+                                0x06
+#define NRF24L01P_RF_SETUP_RF_PWR_S                                           \
+                                   1
 #define NRF24L01P_RF_SETUP_RF_PWR                                             \
                                 0x06    // Set RF output power in TX mode
                                         // '00' - -18dBm
                                         // '01' - -12dBm
                                         // '10' -  -6dBm
                                         // '11' -   0dBm
+#define NRF24L01P_RF_SETUP_RF_PWR_N18DBM                                      \
+                                0x00
+#define NRF24L01P_RF_SETUP_RF_PWR_N12DBM                                      \
+                                0x02
+#define NRF24L01P_RF_SETUP_RF_PWR_N6DBM                                       \
+                                0x04
+#define NRF24L01P_RF_SETUP_RF_PWR_0DBM                                        \
+                                0x06
 
 //*****************************************************************************
 //
@@ -213,8 +238,10 @@
                                         // Write 1 to clear. If MAX_RT is
                                         // asserted it must be cleared to enable
                                         // further communication
-#define NRF24L01P_STATUS_RX_P_NO                                              \
-                                0x0E    // Data pipe number for the payload
+#define NRF24L01P_STATUS_RX_P_NO_M                                            \
+                                0x0E
+#define NRF24L01P_STATUS_RX_P_NO_S                                            \
+                                   1    // Data pipe number for the payload
                                         // available for reading from RX_FIFO
                                         // 000-101: Data pipe number (0-5)
                                         // 110    : Unused
@@ -230,13 +257,17 @@
 // register.
 //
 //*****************************************************************************
-#define NRF24L01P_OBSERVE_TX_PLOS_CNT                                         \
-                                0xF0    // Count lost packets. The counter is
+#define NRF24L01P_OBSERVE_TX_PLOS_CNT_M                                       \
+                                0xF0
+#define NRF24L01P_OBSERVE_TX_PLOS_CNT_S                                       \
+                                   4    // Count lost packets. The counter is
                                         // overflow protected to 15, and
                                         // discontinues at max until reset.
                                         // Counter reset by writing to RF_CH
-#define NRF24L01P_OBSERVE_TX_ARC_CNT                                          \
-                                0x0F    // Count retransmitted packets. The
+#define NRF24L01P_OBSERVE_TX_ARC_CNT_M                                        \
+                                0x0F
+#define NRF24L01P_OBSERVE_TX_ARC_CNT_S                                        \
+                                   0    // Count retransmitted packets. The
                                         // counter is reset when transmission of
                                         // new packet starts.
 
@@ -254,7 +285,9 @@
 // register.
 //
 //*****************************************************************************
-#define NRF24L01P_RX_PW_BYTES   0x03F   // Number of bytes in RX payload
+#define NRF24L01P_RX_PW_M       0x3F
+#define NRF24L01P_RX_PW_S          0
+#define NRF24L01P_RX_PW_BYTES   0x3F    // Number of bytes in RX payload
                                         // 0: Pipe not used
                                         // Common for all pipes
 
