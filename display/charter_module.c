@@ -195,7 +195,11 @@ void CharterInit(bool bOffScreen)
     GrContextInit(&g_sTFTContext, &g_sST7735R128x128x18);
     GrContextFontSet(&g_sTFTContext, g_psFontFixed6x8);
 
+<<<<<<< HEAD
 	//
+=======
+    //
+>>>>>>> branch 'Tracking_Algorithm' of https://github.com/islasa1/Overlord_System
     // Set Battery drawing rectangle
     //
 
