@@ -29,6 +29,8 @@
 #include "../peripherals/hw_mpu9x50.h"
 #include "../peripherals/mpu9x50.h"
 
+#include "../sensors/windrose_module.h"
+
 //*****************************************************************************
 //
 //! \addtogroup imu_api
@@ -430,6 +432,11 @@ IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
     // MPU9X50 Transactions complete
     //
     sg_vui8MPUI2CDoneFlag = true;
+
+    //
+    // Get calibration data
+    //
+    ReadCalibrationData();
 }
 
 //*****************************************************************************

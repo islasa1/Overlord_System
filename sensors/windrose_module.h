@@ -8,8 +8,7 @@
 #ifndef __SENSORS_WINDROSE_MODULE_H__
 #define __SENSORS_WINDROSE_MODULE_H__
 
-extern void CalibrateGyro(void);
-extern void CalibrateMag(void);
+extern void ReadCalibrationData(void);
 extern void InitPosition(float *pfAccel);
 extern void InitHeading(float *pfMag);
 extern void UpdateHeading(float *pfGyro, float *pfMag);

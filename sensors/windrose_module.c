@@ -5,14 +5,55 @@
  *      Author: Anthony
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
 
-#define TIMESTEP .05
+#include "driverlib/eeprom.h"
+#include "driverlib/sysctl.h"
+
+#define TIMESTEP .1
+#define CALIBRATION_DATA_ADDRESS 0
+#define CALIBRATION_DATA_SIZE sizeof(tCalibrationData)
 
 #ifndef M_PI
 #define M_PI                    3.14159265358979323846
 #endif
+
+//*****************************************************************************
+//
+// Define calibration data struct.
+//
+//*****************************************************************************
+typedef struct
+{
+    float fXAccelBias;
+    float fYAccelBias;
+    float fZAccelBias;
+    float fXAccelScale;
+    float fYAccelScale;
+    float fZAccelScale;
+    float fYXAccelAlignment;
+    float fZXAccelAlignment;
+    float fXYAccelAlignment;
+    float fZYAccelAlignment;
+    float fXZAccelAlignment;
+    float fYZAccelAlignment;
+    float fXGyroBias;
+    float fYGyroBias;
+    float fZGyroBias;
+    float fXGyroScale;
+    float fYGyroScale;
+    float fZGyroScale;
+    float fYXGyroAlignment;
+    float fZXGyroAlignment;
+    float fXYGyroAlignment;
+    float fZYGyroAlignment;
+    float fXZGyroAlignment;
+    float fYZGyroAlignment;
+} tCalibrationData;
+
+tCalibrationData g_sCalibrationData;
 
 //*****************************************************************************
 //
@@ -27,34 +68,74 @@ float g_pfInitialAccel[3];
 
 //*****************************************************************************
 //
-//! Calibrates the gyroscope.
+//! Resets the calibration data struct.
 //!
-//! This function calibrates the gyroscope and stores the calibration values
-//! in a global for the tracking algorithm to use.
+//! This function resets the global calibration data struct to values that do
+//! not affect the measurements (i.e. keep the uncalibrated data). This is
+//! meant to be used when the EEPROM fails to be read.
 //!
 //! \return None.
 //
 //*****************************************************************************
 void
-CalibrateGyro(void)
+ResetCalibrationData(void)
 {
-
+    g_sCalibrationData.fXAccelBias = 0;
+    g_sCalibrationData.fYAccelBias = 0;
+    g_sCalibrationData.fZAccelBias = 0;
+    g_sCalibrationData.fXAccelScale = 1;
+    g_sCalibrationData.fYAccelScale = 1;
+    g_sCalibrationData.fZAccelScale = 1;
+    g_sCalibrationData.fYXAccelAlignment = 0;
+    g_sCalibrationData.fZXAccelAlignment = 0;
+    g_sCalibrationData.fXYAccelAlignment = 0;
+    g_sCalibrationData.fZYAccelAlignment = 0;
+    g_sCalibrationData.fXZAccelAlignment = 0;
+    g_sCalibrationData.fYZAccelAlignment = 0;
+    g_sCalibrationData.fXGyroBias = 0;
+    g_sCalibrationData.fYGyroBias = 0;
+    g_sCalibrationData.fZGyroBias = 0;
+    g_sCalibrationData.fXGyroScale = 1;
+    g_sCalibrationData.fYGyroScale = 1;
+    g_sCalibrationData.fZGyroScale = 1;
+    g_sCalibrationData.fYXGyroAlignment = 0;
+    g_sCalibrationData.fZXGyroAlignment = 0;
+    g_sCalibrationData.fXYGyroAlignment = 0;
+    g_sCalibrationData.fZYGyroAlignment = 0;
+    g_sCalibrationData.fXZGyroAlignment = 0;
+    g_sCalibrationData.fYZGyroAlignment = 0;
 }
 
 //*****************************************************************************
 //
-//! Calibrates the magnetometer.
+//! Retrieves the calibration data from EEPROM.
 //!
-//! This function calibrates the magnetometer and stores the calibration values
-//! in a global for the tracking algorithm to use.
+//! This function retrieves the IMU calibration data from EEPROM and stores it
+//! in the global calibration data struct. The calibration data must be
+//! written to EEPROM prior to operation. This data is then used to improve
+//! the accuracy of the tracking algorithm.
 //!
 //! \return None.
 //
 //*****************************************************************************
 void
-CalibrateMag(void)
+ReadCalibrationData(void)
 {
+    //
+    // Initialize EEPROM and peripheral
+    //
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
+    if(EEPROMInit() != EEPROM_INIT_OK)
+    {
+        ResetCalibrationData();
+        return;
+    }
 
+    //
+    // Read the data from EEPROM
+    //
+    EEPROMRead((uint32_t *)&g_sCalibrationData, CALIBRATION_DATA_ADDRESS,
+               CALIBRATION_DATA_SIZE);
 }
 
 //*****************************************************************************
