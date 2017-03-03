@@ -32,7 +32,6 @@ typedef void (tSPICallback)(void *pvData, uint_fast8_t ui8Status);
 //*****************************************************************************
 #define SPIM_STATUS_SUCCESS     0
 #define SPIM_STATUS_BATCH_DONE  1
-#define SPIM_STATUS_BATCH_READY 2
 
 //*****************************************************************************
 //

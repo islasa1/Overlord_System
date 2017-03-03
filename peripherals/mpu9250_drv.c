@@ -1,5 +1,5 @@
 /*
- * IMU.c
+ * mpu9250_drv.c
  *
  *  Created on: Feb 8, 2017
  *      Author: moncadac
