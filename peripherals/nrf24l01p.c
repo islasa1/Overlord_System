@@ -268,8 +268,25 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
     }
 }
 
+//*****************************************************************************
+//! Initialize the NRF24L01P driver.
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//! \param psSPIInst is a pointer to the SPI master driver instance data.
+//! \param ui32CSPort is the base port of the Chip Select.
+//! \param ui8CSPin is the pin
+//! \param ui32CEPort
+//! \param ui8CEPin
+//! \param pfnCallback
+//! \param pvCallbackData
+//!
+//!
+//!
+//! \return
+//*****************************************************************************
 uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
                            uint32_t ui32CSPort, uint8_t ui8CSPin,
+                           uint32_t ui32CEPort, uint8_t ui8CEPin,
                            tSPICallback *pfnCallback,
                            void *pvCallbackData)
 {
