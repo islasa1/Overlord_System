@@ -542,13 +542,12 @@ void CharterTest_1(void)
     while(1)
     {
         CharterDrawScreen(percent * 360 / 100, (uint8_t) percent, charging < 0x0f);
-        CharterShowBattPercent(&g_sOffScreenContext, GetBatteryPercentage (), GetStateOfCharge ());
-        CharterDrawHeading(&g_sOffScreenContext, percent * 360 / 100);
+        CharterShowBattPercent(GetBatteryPercentage (), GetStateOfCharge ());
+        CharterDrawHeading(percent * 360 / 100);
         OffScreenFlush(&g_sTFTContext);
         MAP_SysCtlDelay(MAP_SysCtlClockGet() * 0.005);
         percent += 0.5;
         percent = percent > 100 ? percent - 100 : percent;
-        charging = (charging <<= 1) == 0 ? 1 : charging;
     }
 }
 

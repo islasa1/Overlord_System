@@ -105,6 +105,22 @@ volatile uint_fast8_t g_vui8AK8963DoneFlag = false, g_vui8AK8963ErrorFlag = 0;
 
 #define ALPHA 0.01
 
+void Timer0IntHandler(void)
+{
+  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+
+    IMUDataRead();
+
+  IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
+    UpdateHeading(g_pfGyro, g_pfMag);
+    UpdatePosition(g_pfAccel);
+    g_pfHead[0] = GetRelativeHeading(0, 0);
+    CharterDrawHeading(g_pfHead[0]);
+    CharterShowBattPercent( 0, 0);
+    CharterFlush();
+}
+
+
 //*****************************************************************************
 //
 // The error routine that is called if the driver library encounters an error.
@@ -117,6 +133,35 @@ __error__(char *pcFilename, uint32_t ui32Line)
 }
 #endif
 
+void ConsoleInit(void)
+ {
+     //
+     // Enable the GPIO Peripheral used by the UART.
+     //
+     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+
+     //
+     // Enable UART0
+     //
+     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+
+     //
+    // Configure GPIO Pins for UART mode.
+     //
+     MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
+     MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
+     MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+     //
+     // Use the internal 16MHz oscillator as the UART clock source.
+     //
+     UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+
+     //
+     // Initialize the UART for console I/O.
+     //
+     UARTStdioConfig(0, 115200, 16000000);
+ }
 
 int main(void)
 {
