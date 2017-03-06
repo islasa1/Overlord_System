@@ -29,6 +29,8 @@
 #include "../peripherals/hw_mpu9x50.h"
 #include "../peripherals/mpu9x50.h"
 
+#include "../sensors/windrose_module.h"
+
 //*****************************************************************************
 //
 //! \addtogroup imu_api
@@ -55,21 +57,21 @@ volatile static uint_fast8_t sg_vui8MPUErrorFlag, sg_vui8AKErrorFlag;
 // Global pointer to MPU9X50 instance. Local to this file.
 //
 //*****************************************************************************
-static tMPU9X50 *sg_psMPU9X50Inst;
+static tMPU9X50 *g_psMPU9X50Inst;
 
 //*****************************************************************************
 //
 // Global pointer to AK8963 instance. Local to this file.
 //
 //*****************************************************************************
-static tAK8963 *sg_psAK8963Inst;
+static tAK8963 *g_psAK8963Inst;
 
 //*****************************************************************************
 //
 // Global pointer to AK8963 instance. Local to this file.
 //
 //*****************************************************************************
-static tI2CMInstance *sg_psI2CMInst;
+static tI2CMInstance *g_psI2CMInst;
 
 //*****************************************************************************
 //
@@ -244,7 +246,7 @@ MPU9X50I2CIntHandler(void)
     // This is required to be at application level so that I2CMIntHandler can
     // receive the instance structure pointer as an argument.
     //
-    I2CMIntHandler(sg_psI2CMInst);
+    I2CMIntHandler(g_psI2CMInst);
 }
 
 //*****************************************************************************
@@ -269,9 +271,27 @@ MPU9X50IntHandler(void)
 
     if(ulStatus & GPIO_PIN_0)
     {
-        AK8963DataRead(sg_psAK8963Inst, AK8963AppCallback, sg_psAK8963Inst);
-        MPU9X50DataRead(sg_psMPU9X50Inst, MPU9X50AppCallback, sg_psMPU9X50Inst);
+        AK8963DataRead(g_psAK8963Inst, AK8963AppCallback, g_psAK8963Inst);
+        MPU9X50DataRead(g_psMPU9X50Inst, MPU9X50AppCallback, g_psMPU9X50Inst);
     }
+}
+
+//*****************************************************************************
+//
+//! Gets data from the MPU9X50 and AK8963 devices.
+//!
+//! This function is a wrapper for the MPU9X50 and AK8963 data read functions.
+//! It calls both of them and stores the data in the global driver instances
+//! in this file.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void
+IMUDataRead(void)
+{
+    MPU9X50DataRead(g_psMPU9X50Inst, MPU9X50AppCallback, g_psMPU9X50Inst);
+    AK8963DataRead(g_psAK8963Inst, AK8963AppCallback, g_psAK8963Inst);
 }
 
 //*****************************************************************************
@@ -295,9 +315,9 @@ MPU9X50IntHandler(void)
 void
 IMUDataGetFloat(float *pfAccel, float *pfGyro, float *pfMag)
 {
-    MPU9X50DataAccelGetFloat(sg_psMPU9X50Inst, &pfAccel[0], &pfAccel[1], &pfAccel[2]);
-    MPU9X50DataGyroGetFloat(sg_psMPU9X50Inst, &pfGyro[0], &pfGyro[1], &pfGyro[2]);
-    AK8963DataMagnetoGetFloat(sg_psAK8963Inst, &pfMag[0], &pfMag[1], &pfMag[2]);
+    MPU9X50DataAccelGetFloat(g_psMPU9X50Inst, &pfAccel[0], &pfAccel[1], &pfAccel[2]);
+    MPU9X50DataGyroGetFloat(g_psMPU9X50Inst, &pfGyro[0], &pfGyro[1], &pfGyro[2]);
+    AK8963DataMagnetoGetFloat(g_psAK8963Inst, &pfMag[0], &pfMag[1], &pfMag[2]);
 }
 
 //*****************************************************************************
@@ -324,9 +344,9 @@ void
 IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
         tI2CMInstance *psI2CMInst)
 {
-    sg_psMPU9X50Inst = psMPU9X50Inst;
-    sg_psAK8963Inst = psAK8963Inst;
-    sg_psI2CMInst = psI2CMInst;
+    g_psMPU9X50Inst = psMPU9X50Inst;
+    g_psAK8963Inst = psAK8963Inst;
+    g_psI2CMInst = psI2CMInst;
 
     //
     // Enable I2C & associated GPIO ports. Register their interrupts
@@ -337,12 +357,12 @@ IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
     //
     // Initialize I2C driver library
     //
-    I2CMInit(sg_psI2CMInst, MPU9X50_I2C_BASE, MPU9X50_I2C_INT, 0xff, 0xff, MAP_SysCtlClockGet());
+    I2CMInit(g_psI2CMInst, MPU9X50_I2C_BASE, MPU9X50_I2C_INT, 0xff, 0xff, MAP_SysCtlClockGet());
 
     //
     // Initialize the MPU9X50 Driver.
     //
-    MPU9X50Init(sg_psMPU9X50Inst, sg_psI2CMInst, MPU9X50_I2C_ADDRESS, MPU9X50AppCallback, sg_psMPU9X50Inst);
+    MPU9X50Init(g_psMPU9X50Inst, g_psI2CMInst, MPU9X50_I2C_ADDRESS, MPU9X50AppCallback, g_psMPU9X50Inst);
 
     //
     // Wait for transaction to complete
@@ -353,11 +373,11 @@ IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
     // Write application specific sensor configuration such as filter settings
     // and sensor range settings.
     //
-    sg_psMPU9X50Inst->pui8Data[0] = MPU9X50_CONFIG_DLPF_CFG_260_256;
-    sg_psMPU9X50Inst->pui8Data[1] = MPU9X50_GYRO_CONFIG_FS_SEL_2000;
-    sg_psMPU9X50Inst->pui8Data[2] = (MPU9X50_ACCEL_CONFIG_ACCEL_HPF_5HZ |
+    g_psMPU9X50Inst->pui8Data[0] = MPU9X50_CONFIG_DLPF_CFG_260_256;
+    g_psMPU9X50Inst->pui8Data[1] = MPU9X50_GYRO_CONFIG_FS_SEL_2000;
+    g_psMPU9X50Inst->pui8Data[2] = (MPU9X50_ACCEL_CONFIG_ACCEL_HPF_5HZ |
                                   MPU9X50_ACCEL_CONFIG_AFS_SEL_2G);
-    MPU9X50Write(sg_psMPU9X50Inst, MPU9X50_O_CONFIG, sg_psMPU9X50Inst->pui8Data, 3, MPU9X50AppCallback, sg_psMPU9X50Inst);
+    MPU9X50Write(g_psMPU9X50Inst, MPU9X50_O_CONFIG, g_psMPU9X50Inst->pui8Data, 3, MPU9X50AppCallback, g_psMPU9X50Inst);
 
     //
     // Wait for transaction to complete
@@ -367,38 +387,38 @@ IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
     //
     // Kill the internal master mode
     //
-    sg_psMPU9X50Inst->pui8Data[0] = 0x0;
-    MPU9X50Write(sg_psMPU9X50Inst, MPU9X50_O_USER_CTRL,
-                 sg_psMPU9X50Inst->pui8Data, 1, MPU9X50AppCallback,
-                 sg_psMPU9X50Inst);
+    g_psMPU9X50Inst->pui8Data[0] = 0x0;
+    MPU9X50Write(g_psMPU9X50Inst, MPU9X50_O_USER_CTRL,
+                 g_psMPU9X50Inst->pui8Data, 1, MPU9X50AppCallback,
+                 g_psMPU9X50Inst);
 
     MPU9X50AppI2CWait(__FILE__, __LINE__);
 
     //
     // Configure the data ready interrupt pin output of the MPU9X50.
     //
-    sg_psMPU9X50Inst->pui8Data[0] = MPU9X50_INT_PIN_CFG_INT_LEVEL |
+    g_psMPU9X50Inst->pui8Data[0] = MPU9X50_INT_PIN_CFG_INT_LEVEL |
                                     MPU9X50_INT_PIN_CFG_INT_RD_CLEAR |
                                     MPU9X50_INT_PIN_CFG_LATCH_INT_EN |
                                     MPU9X50_INT_PIN_CFG_I2C_BYPASS_EN;
-    sg_psMPU9X50Inst->pui8Data[1] = MPU9X50_INT_ENABLE_DATA_RDY_EN;
-    MPU9X50Write(sg_psMPU9X50Inst, MPU9X50_O_INT_PIN_CFG,
-                 sg_psMPU9X50Inst->pui8Data, 2, MPU9X50AppCallback,
-                 sg_psMPU9X50Inst);
+    g_psMPU9X50Inst->pui8Data[1] = MPU9X50_INT_ENABLE_DATA_RDY_EN;
+    MPU9X50Write(g_psMPU9X50Inst, MPU9X50_O_INT_PIN_CFG,
+                 g_psMPU9X50Inst->pui8Data, 2, MPU9X50AppCallback,
+                 g_psMPU9X50Inst);
 
     //
     // Wait for transaction to complete
     //
     MPU9X50AppI2CWait(__FILE__, __LINE__);
 
-    AK8963Init(sg_psAK8963Inst, sg_psI2CMInst, 0x0C, AK8963AppCallback, sg_psAK8963Inst);
+    AK8963Init(g_psAK8963Inst, g_psI2CMInst, 0x0C, AK8963AppCallback, g_psAK8963Inst);
 
     AK8963AppI2CWait(__FILE__, __LINE__);
 
-    sg_psAK8963Inst->pui8Data[0] = AK8963_CNTL_MODE_CONT_2;
-    AK8963Write(sg_psAK8963Inst, AK8963_O_CNTL,
-                sg_psAK8963Inst->pui8Data, 1, AK8963AppCallback,
-                sg_psAK8963Inst);
+    g_psAK8963Inst->pui8Data[0] = AK8963_CNTL_MODE_CONT_2;
+    AK8963Write(g_psAK8963Inst, AK8963_O_CNTL,
+                g_psAK8963Inst->pui8Data, 1, AK8963AppCallback,
+                g_psAK8963Inst);
 
     AK8963AppI2CWait(__FILE__, __LINE__);
 
@@ -412,6 +432,11 @@ IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
     // MPU9X50 Transactions complete
     //
     sg_vui8MPUI2CDoneFlag = true;
+
+    //
+    // Get calibration data
+    //
+    ReadCalibrationData();
 }
 
 //*****************************************************************************

@@ -23,14 +23,15 @@
 #include "../peripherals/hw_mpu9x50.h"
 #include "../peripherals/mpu9x50.h"
 
-void MPU9X50AppI2CWait(char *pcFilename, uint_fast32_t ui32Line);
-void AK8963AppI2CWait(char *pcFilename, uint_fast32_t ui32Line);
-void MPU9X50AppCallback(void *pvCallbackData, uint_fast8_t ui8Status);
-void AK8963AppCallback(void *pvCallbackData, uint_fast8_t ui8Status);
-void MPU9X50I2CIntHandler(void);
-void GPIOeIntHandler(void);
-void IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
+extern void MPU9X50AppI2CWait(char *pcFilename, uint_fast32_t ui32Line);
+extern void AK8963AppI2CWait(char *pcFilename, uint_fast32_t ui32Line);
+extern void MPU9X50AppCallback(void *pvCallbackData, uint_fast8_t ui8Status);
+extern void AK8963AppCallback(void *pvCallbackData, uint_fast8_t ui8Status);
+extern void MPU9X50I2CIntHandler(void);
+extern void GPIOeIntHandler(void);
+extern void IMUInit(tMPU9X50 *psMPU9X50Inst, tAK8963 *psAK8963Inst,
              tI2CMInstance *psI2CInst);
-void IMUDataGetFloat(float *pfAccel, float *pfGyro, float *pfMag);
+extern void IMUDataRead(void);
+extern void IMUDataGetFloat(float *pfAccel, float *pfGyro, float *pfMag);
 
 #endif /* SENSORS_MPU9250_DRV_H_ */

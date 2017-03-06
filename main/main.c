@@ -49,6 +49,7 @@
 #include "utils/uartstdio.h"
 #include "utils/cmdline.h"
 
+#include "../display/charter_module.h"
 
 #include "../peripherals/bq27441.h"
 #include "../peripherals/gpio.h"
@@ -59,6 +60,7 @@
 #include "../peripherals/mpu9250_drv.h"
 
 #include "../sensors/imu_tests.h"
+#include "../sensors/windrose_module.h"
 
 
 #define DELAY 0
@@ -116,7 +118,6 @@ __error__(char *pcFilename, uint32_t ui32Line)
 #endif
 
 
-//# TODO: Clean up this code.
 //*****************************************************************************
 //
 // Define BQ27441 I2C Address.
@@ -335,7 +336,6 @@ void CalculatePitchRoll(float x, float y, float z, float *roll,
     *pitch = atan2(-aX, sqrt(aY * aY + aZ * aZ)) * RAD_TO_DEG;
 }
 
-
 //*****************************************************************************
 //
 // MPU9X50 Sensor callback function.  Called at the end of MPU9X50 sensor
@@ -419,7 +419,15 @@ void Timer0IntHandler(void)
 {
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
+    IMUDataRead();
+
     IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
+    UpdateHeading(g_pfGyro, g_pfMag);
+    UpdatePosition(g_pfAccel);
+    g_pfHead[0] = GetRelativeHeading(0, 0);
+    CharterDrawHeading(g_pfHead[0]);
+    CharterShowBattPercent( 0, 0);
+    CharterFlush();
 }
 
 int main(void)
@@ -431,23 +439,6 @@ int main(void)
             SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN
                     | SYSCTL_XTAL_16MHZ);
 
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-    TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 100);
-    IntEnable(INT_TIMER0A);
-    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-    IntRegister(INT_TIMER0A, Timer0IntHandler);
-
-    g_sBQ27441Inst.psI2CInst = NULL;
-
-    I2CInit(BQ27441_I2C_BASE, I2C_SPEED_400);
-    I2CIntRegister(BQ27441_I2C_BASE, BQ27441I2CIntHandler);
-
-    I2CMInit (&g_sBQ27441I2CInst, BQ27441_I2C_BASE, BQ27441_I2C_INT, 0xff, 0xff, MAP_SysCtlClockGet ());
-    BQ27441Init (&g_sBQ27441Inst, &g_sBQ27441I2CInst, BQ27441_I2C_ADDRESS, BQ27441AppCallback, &g_sBQ27441Inst);
-
-    MAP_IntMasterEnable();
-
     //
     // Enable the FPU
     //
@@ -457,20 +448,38 @@ int main(void)
     UARTprintf("IMU Visualization Test\r\n");
     UARTprintf("Initializing...\r\n");
     IMUInit(&g_sMPU9X50Inst, &g_sAK8963Inst, &g_sI2CMInst);
+    CharterInit(true);
+    CharterClrScreen();
     UARTprintf("Done\r\n");
 
     bool result;
 
-    //
-    // Wait for initialization callback to indicate reset request is complete.
-    //
-    if (BQ27441AppI2CWait()) while (true);
-
-    BQ27441DataRead(&g_sBQ27441Inst, BQ27441DataAppCallback, &g_sBQ27441Inst);
-
     result = IMUTest1(&g_sMPU9X50Inst, &g_sAK8963Inst);
     if (result)
     {
+        IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
+        InitPosition(g_pfAccel);
+        InitHeading(g_pfMag);
+
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+        TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+        TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 10);
+
+        IntMasterDisable();
+
+        IntEnable(INT_TIMER0A);
+        TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+        IntRegister(INT_TIMER0A, Timer0IntHandler);
+
+        IntMasterEnable();
+
         TimerEnable(TIMER0_BASE, TIMER_A);
+    }
+
+    while(1)
+    {
+        //
+        // Do nothing
+        //
     }
 }
