@@ -23,17 +23,6 @@
 
 //*****************************************************************************
 //
-// The application callback function that is called when I2C transactions to/from the
-// BQ27441 have completed.
-//
-//*****************************************************************************
-void
-AppCallback(void *pvCallbackData, uint_fast8_t ui8Status)
-{
-
-}
-//*****************************************************************************
-//
 // The callback function that is called when I2C transactions to/from the
 // BQ27441 have completed.
 //
@@ -875,9 +864,6 @@ BQ27441DataInternalTemperatureGetFloat(tBQ27441 *psInst, float *pfData)
     *pfData = (float)(i16Data);
     *pfData = *pfData / 10.0f;
     *pfData -= 272.15f;
-
-
-
 }
 
 //*****************************************************************************

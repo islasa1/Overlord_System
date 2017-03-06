@@ -52,7 +52,7 @@ uint32_t timerAPeriodicIntInit(uint32_t ui32Base, uint32_t ui32Hz, uint8_t ui8Pr
     }
   }
   //
-  // Enable the perifpherals used by the timer interrupts
+  // Enable the peripherals used by the timer interrupts
   //
   MAP_SysCtlPeripheralEnable(ui32Peripheral);
 
@@ -114,7 +114,7 @@ uint32_t timerAOneshotIntInit(uint32_t ui32Base, uint32_t ui32Hz, uint8_t ui8Pri
     }
   }
   //
-  // Enable the perifpherals used by the timer interrupts
+  // Enable the peripherals used by the timer interrupts
   //
   MAP_SysCtlPeripheralEnable(ui32Peripheral);
 
