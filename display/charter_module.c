@@ -27,6 +27,8 @@
 #include "utils/ustdlib.h"
 #include "utils/sine.h"
 
+#include "../power/dips_module.h"
+
 #include "axis_logo128x128.h"
 #include "battery_icon.h"
 #include "charge_icon.h"
@@ -194,12 +196,8 @@ void CharterInit(bool bOffScreen)
     //
     GrContextInit(&g_sTFTContext, &g_sST7735R128x128x18);
     GrContextFontSet(&g_sTFTContext, g_psFontFixed6x8);
-
-<<<<<<< HEAD
-	//
-=======
+  
     //
->>>>>>> branch 'Tracking_Algorithm' of https://github.com/islasa1/Overlord_System
     // Set Battery drawing rectangle
     //
 
@@ -413,7 +411,7 @@ void CharterDrawHeadingLine(tContext *psContext, tHeadingPosition *psHeading)
 //! \param angle is a float value in radians [0 - 2*pi)
 //!
 //! This function will draw an angle heading on the screen \em relative \em to
-//! the X-axis 0° from the display orientation.
+//! the X-axis 0Â° from the display orientation.
 //!
 //! \return None.
 //
@@ -483,7 +481,7 @@ void CharterDrawHeading(float angle)
     sPrevHeading = sHeading;
 }
 
-//*****************************************************************************
+//****************************************************************************
 //! Flush the graphics controller
 //!
 //! This function will flush any graphics operations waiting from the graphics
@@ -544,9 +542,9 @@ void CharterTest_1(void)
     while(1)
     {
         CharterDrawScreen(percent * 360 / 100, (uint8_t) percent, charging < 0x0f);
-/*        CharterShowBattPercent(&g_sOffScreenContext, (uint8_t) percent, charging < 0x0f);
+        CharterShowBattPercent(&g_sOffScreenContext, GetBatteryPercentage (), GetStateOfCharge ());
         CharterDrawHeading(&g_sOffScreenContext, percent * 360 / 100);
-        OffScreenFlush(&g_sTFTContext);*/
+        OffScreenFlush(&g_sTFTContext);
         MAP_SysCtlDelay(MAP_SysCtlClockGet() * 0.005);
         percent += 0.5;
         percent = percent > 100 ? percent - 100 : percent;
