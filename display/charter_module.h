@@ -16,8 +16,14 @@
 #define PWM_GPIO_PORT       GPIO_PORTC_BASE
 #define PWM_GPIO_PIN        GPIO_PIN_4
 
+//*****************************************************************************
+//
+// Function prototypes.
+//
+//*****************************************************************************
 extern void CharterInit(void);
 extern void CharterSplashScreen(void);
+extern void CharterBatteryTest(void);
 extern void CharterTest_1(void);
 extern void CharterTest_2(void);
 extern void CharterTest_3(void);

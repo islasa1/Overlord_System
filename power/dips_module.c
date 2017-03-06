@@ -19,6 +19,7 @@
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
+#include "driverlib/timer.h"
 
 #include "sensorlib/i2cm_drv.h"
 
@@ -197,6 +198,7 @@ uint_fast8_t BQ27441AppI2CWait(void)
 //*****************************************************************************
 void PeriodicTimerIntHandler (void)
 {
+    TimerIntClear (TIMER1_BASE, TIMER_TIMA_TIMEOUT);
     BQ27441DataRead(&g_sBQ27441Inst, BQ27441DataAppCallback, &g_sBQ27441Inst);
 }
 
@@ -212,7 +214,7 @@ void PeriodicTimerIntHandler (void)
 //! \return None.
 //
 //*****************************************************************************
-void BatteryInit (void)
+void BatteryInit ()
 {
     I2CInit(BQ27441_I2C_BASE, I2C_SPEED_400);
     I2CIntRegister(BQ27441_I2C_BASE, BQ27441I2CIntHandler);
@@ -228,9 +230,40 @@ void BatteryInit (void)
     //
     // Initialize the periodic timer to refresh the battery information
     //
-    timerAPeriodicIntInit(TIMER1_BASE, 2, 0xE0, PeriodicTimerIntHandler);
+    timerAPeriodicIntInit(TIMER1_BASE, 4, 0xE0, PeriodicTimerIntHandler);
 }
 
+//*****************************************************************************
+//
+//! Returns the State of Charge
+//!
+//!
+//!
+//! \return None.
+//
+//*****************************************************************************
+bool GetStateOfCharge ()
+{
+    if (!g_sBatteryInfo.i16StateOfCharge)
+        return false;
+   return true;
+}
+
+//*****************************************************************************
+//
+//! Returns the remaining battery percentage
+//!
+//!
+//!
+//! \return None.
+//
+//*****************************************************************************
+int16_t GetBatteryPercentage ()
+{
+    int16_t i16ReturnPercentage;
+    i16ReturnPercentage = (g_sBatteryInfo.i16RemainingCapacity*100)/g_sBatteryInfo.i16FullAvailableCapacity;
+   return i16ReturnPercentage;
+}
 //*****************************************************************************
 //
 // Close the Doxygen group.

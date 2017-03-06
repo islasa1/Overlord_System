@@ -27,6 +27,8 @@
 #include "utils/ustdlib.h"
 #include "utils/sine.h"
 
+#include "../power/dips_module.h"
+
 #include "axis_logo128x128.h"
 #include "battery_icon.h"
 #include "charge_icon.h"
@@ -272,7 +274,7 @@ void CharterSplashScreen(void)
 //! \return None.
 //
 //*****************************************************************************
-void CharterShowBattPercent(tContext *psContext, uint8_t percentage, bool isCharging)
+void CharterShowBattPercent(tContext *psContext, int16_t percentage, bool isCharging)
 {
     char percentStr[6];
 
@@ -434,6 +436,58 @@ void CharterDrawHeading(tContext *psContext, float angle)
     // Save previous state
     //
     sPrevHeading = sHeading;
+}
+
+//*****************************************************************************
+//! Battery Test for the Charter Module
+//!
+//! This function will run through the ST7735R 128x128 18-bit driver
+//! initialization sequence, paint the screen red momentarily, and then display
+//! the team logo. This should only be used in VnV testing
+//!
+//! \return None.
+//
+//*****************************************************************************
+void CharterBatteryTest()
+{
+    tRectangle sRect;
+
+    CharterInit();
+
+    //
+    // Draw pixels to the screen
+    //
+    sRect.i16XMin = 0;
+    sRect.i16YMin = 0;
+    sRect.i16XMax = X_MAX;
+    sRect.i16YMax = Y_MAX;
+
+    GrContextForegroundSet(&g_sOffScreenContext, ClrWhite);
+    GrRectFill(&g_sOffScreenContext, &sRect);
+    OffScreenFlush(&g_sTFTContext);
+
+    MAP_SysCtlDelay(MAP_SysCtlClockGet() / 2 / 3);
+
+    //
+    // Draw to main screen anyways since it is an image
+    //
+    CharterSplashScreen();
+
+
+    CharterClrScreen(&g_sOffScreenContext);
+    OffScreenFlush(&g_sTFTContext);
+    float percent = 0;
+    uint8_t charging = 0x01;
+    while(1)
+    {
+        CharterShowBattPercent(&g_sOffScreenContext, GetBatteryPercentage (), GetStateOfCharge ());
+        CharterDrawHeading(&g_sOffScreenContext, percent * 360 / 100);
+        OffScreenFlush(&g_sTFTContext);
+        MAP_SysCtlDelay(MAP_SysCtlClockGet() * 0.005);
+        percent += 0.5;
+        percent = percent > 100 ? percent - 100 : percent;
+        charging = (charging <<= 1) == 0 ? 1 : charging;
+    }
 }
 
 //*****************************************************************************

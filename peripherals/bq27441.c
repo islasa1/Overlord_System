@@ -864,9 +864,6 @@ BQ27441DataInternalTemperatureGetFloat(tBQ27441 *psInst, float *pfData)
     *pfData = (float)(i16Data);
     *pfData = *pfData / 10.0f;
     *pfData -= 272.15f;
-
-
-
 }
 
 //*****************************************************************************

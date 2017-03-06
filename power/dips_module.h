@@ -35,6 +35,8 @@ typedef struct {
 // Function prototype.
 //
 //*****************************************************************************
-void BatteryInit (void);
+void BatteryInit ();
+bool GetStateOfCharge ();
+int16_t GetBatteryPercentage ();
 
 #endif /* __DIPS_MODULE_DIPS_MODULE_H__ */
