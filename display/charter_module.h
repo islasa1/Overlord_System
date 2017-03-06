@@ -21,9 +21,13 @@
 // Function prototypes.
 //
 //*****************************************************************************
-extern void CharterInit(void);
+extern void CharterInit(bool);
+extern void CharterClrScreen(void);
 extern void CharterSplashScreen(void);
-extern void CharterBatteryTest(void);
+extern void CharterShowBattPercent(uint8_t ui8Percentage, bool isCharging);
+extern void CharterDrawHeading(float angle);
+extern void CharterFlush(void);
+
 extern void CharterTest_1(void);
 extern void CharterTest_2(void);
 extern void CharterTest_3(void);
