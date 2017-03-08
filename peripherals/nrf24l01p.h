@@ -196,6 +196,11 @@ typedef struct
     uint16_t ui16AirDataRate;
 
     //
+    //! The device address width in bytes.
+    //
+    uint8_t ui8AddrWidth;
+
+    //
     //! Key configuration options of device.
     //
     tNRF24L01P_CONFIG sConfig;
@@ -243,10 +248,10 @@ extern uint16_t NRF24L01PGetFrequency(tNRF24L01P *psInst);
 extern void NRF24L01PSetRFOutputPower(tNRF24L01P *psInst, uint8_t ui8Power);
 extern int8_t NRF24L01PGetRFOutputPower(tNRF24L01P *psInst);
 extern void NRF24L01PSetAirDataRate(tNRF24L01P *psInst,
-                                    uint16_t ui16AirDataRate);
-extern int32_t NRF24L01PGetAirDataRate(tNRF24L01P *psInst);
+                                    uint8_t ui8AirDataRate);
+extern uint16_t NRF24L01PGetAirDataRate(tNRF24L01P *psInst);
 extern void NRF24L01PSetCrcWidth(tNRF24L01P *psInst, uint8_t ui8Width);
-extern int32_t NRF24L01PGetCrcWidth(tNRF24L01P *psInst);
+extern uint8_t_t NRF24L01PGetCrcWidth(tNRF24L01P *psInst);
 extern void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8Width, uint8_t ui8Pipe);
 extern void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8Width);
 extern uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe);

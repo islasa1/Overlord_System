@@ -372,8 +372,14 @@ void NRF24L01PSetRFOutputPower(tNRF24L01P *psInst, uint8_t ui8Power)
 }
 
 //*****************************************************************************
+//! Returns the operating radio frequency output power of the NRF24L01P driver.
+//!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! @return
+//!
+//! This function returns the operating radio frequency output power used when
+//! transmitting, and auto-updates if necessary.
+//!
+//! \return Returns the operating output power as dBm.
 //
 //*****************************************************************************
 int8_t NRF24L01PGetRFOutputPower(tNRF24L01P *psInst)
@@ -381,25 +387,36 @@ int8_t NRF24L01PGetRFOutputPower(tNRF24L01P *psInst)
 }
 
 //*****************************************************************************
+//! Sets the operating data rate of the NRF24L01P driver.
+//!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! @param ui16AirDataRate
+//! \param ui8AirDataRate is the predefined bit pattern encoding for different
+//! data rates.
+//!
+//! This function sets the data rate to one of the 3 available (250 kbps,
+//! 1 mbps, 2 mbps) for device operation. use the \e NRF24L01P_RF_SETUP_RF_DR
+//! data rate defines to select a data rate.
+//!
+//! \b DO \b NOT pass a numeric data rate value as \e ui8AirDataRate
+//!
+//! \return None.
 //
 //*****************************************************************************
-void NRF24L01PSetAirDataRate(tNRF24L01P *psInst, uint16_t ui16AirDataRate)
+void NRF24L01PSetAirDataRate(tNRF24L01P *psInst, uint8_t ui8AirDataRate)
 {
 }
 
 //*****************************************************************************
-//! Get the Air data rate.
+//! Returns the operating data rate.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
+//! This function returns the device operating data rate.
 //!
-//!
-//! \return the air data rate in kbps (250, 1M or 2M).
+//! \return the air data rate in kbps (250, 1000 or 2000).
 //
 //*****************************************************************************
-int32_t NRF24L01PGetAirDataRate(tNRF24L01P *psInst)
+uint16_t NRF24L01PGetAirDataRate(tNRF24L01P *psInst)
 {
 }
 
@@ -407,9 +424,10 @@ int32_t NRF24L01PGetAirDataRate(tNRF24L01P *psInst)
 //! Set the CRC width.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! \param ui8Width the number of bits for the CRC (0, 8 or 16).
+//! \param ui8Width the number of bytes for the CRC (1 or 2). Anything greater
+//! than 2 is ignored.
 //!
-//!
+//! This function sets the device CRC encoding scheme.
 //!
 //! \return None.
 //
@@ -419,36 +437,64 @@ void NRF24L01PSetCrcWidth(tNRF24L01P *psInst, uint8_t ui8Width)
 }
 
 //*****************************************************************************
-//! Get the CRC width.
+//! Returns the CRC width.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
+//! This function returns the device CRC encoding scheme.
 //!
-//!
-//! \return the number of bits for the CRC (0, 8 or 16).
+//! \return the number of bytes for the CRC (1 or 2).
 //
 //*****************************************************************************
-int32_t NRF24L01PGetCrcWidth(tNRF24L01P *psInst)
+uint8_t NRF24L01PGetCrcWidth(tNRF24L01P *psInst)
 {
+}
+
+//*****************************************************************************
+//! Sets the address width for all pipes (RX/TX).
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//! \param ui8Width width of the address in bytes (3..5).
+//!
+//! Note that Pipes 0 & 1 have 3, 4 or 5 byte addresses, while Pipes 2..5 only
+//! use the lowest byte (bits 7..0) of the address provided here, and use 2, 3
+//! or 4 bytes from Pipe 1's address. The width parameter is ignored for
+//! Pipes 2..5.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PSetAddrWidth(tNRF24L01P *psInst, uint8_t ui8Width)
+{
+
+}
+
+//*****************************************************************************
+//!
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//! \return
+//
+//*****************************************************************************
+uint8_t NFR24L01PGetAddrWidth(tNRF24L01P *psInst)
+{
+
 }
 
 //*****************************************************************************
 //! Set the Receive address.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! \param ui64Address address associated with the particular pipe.
-//! \param ui8Width width of the address in bytes (3..5).
-//! \param ui8Pipe pipe to associate the address with (0..5, default 0).
+//! \param ui64Address address associated with the particular pipe. The 5
+//! LSBytes are used for addressing.
+//! \param ui8Pipe pipe to associate the address with (0..5).
 //!
-//! Note that Pipes 0 &amp; 1 have 3, 4 or 5 byte addresses,
-//!  while Pipes 2..5 only use the lowest byte (bits 7..0) of the
-//!  address provided here, and use 2, 3 or 4 bytes from Pipe 1's address.
-//!  The width parameter is ignored for Pipes 2..5.
+//! This function
 //!
 //! \return None.
 //
 //*****************************************************************************
-void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8Width, uint8_t ui8Pipe)
+void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8Pipe)
 {
 }
 
@@ -456,16 +502,14 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8
 //! Set the Transmit address.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! \param ui64Address address for transmission
-//! \param ui8Width width of the address in bytes (3..5).
+//! \param ui64Address address for transmission.
 //!
-//! Note that the address width is shared with the Receive pipes,
-//!  so a change to that address width affect transmissions.
+//!
 //!
 //! \return None.
 //
 //*****************************************************************************
-void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8Width)
+void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
 {
 }
 
