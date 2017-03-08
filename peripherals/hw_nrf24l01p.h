@@ -173,11 +173,19 @@
 //
 // Masks available bits to set RF Channel Frequency (RF_CH)
 //
+// Note: The RF channel frequency is set by the RF_CH register according to the
+// following formula:
+// F0= 2400 + RF_CH [MHz]
+//
 //*****************************************************************************
 #define NRF24L01P_RF_CH_FREQ_M  0x3F
 #define NRF24L01P_RF_CH_FREQ_S     0
 #define NRF24L01P_RF_CH_FREQ    0x3F    // Sets the frequency channel nRF24L01+
                                         // operates on
+#define NRF24L01P_RF_CH_FREQ_BASE                                             \
+                                2400    // Base starting frequency
+#define NRF24L01P_RF_CH_FREQ_MAX                                              \
+                                2525    // Maximum operational frequency
 
 //*****************************************************************************
 //
@@ -201,6 +209,13 @@
                                         // '00' - 1Mbps
                                         // '01' - 2Mbps
                                         // '1X' - 250Kbps
+#define NRF24L01P_RF_SETUP_RF_DR_250KBPS                                      \
+                                0x20
+#define NRF24L01P_RF_SETUP_RF_DR_1MBPS                                        \
+                                0x00
+#define NRF24L01P_RF_SETUP_RF_DR_2MBPS                                        \
+                                0x08
+
 #define NRF24L01P_RF_SETUP_RF_PWR_M                                           \
                                 0x06
 #define NRF24L01P_RF_SETUP_RF_PWR_S                                           \
