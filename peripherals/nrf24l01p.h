@@ -173,12 +173,22 @@ typedef struct
     //
     //! The SPI Chip Select Port Base.
     //
-    uint32_t ui32CSPort;
+    uint32_t ui32CSBase;
 
     //
     //! The SPI Chip Select Pin.
     //
     uint8_t ui8CSPin;
+
+    //
+    //! The RX/TX mode Chip Enable Port Base
+    //
+    uint32_t ui32CEBase;
+
+    //
+    //! The RX/TX mode Chip Enable Pin
+    //
+    uint8_t ui8CEPin;
 
     //
     //! The operational frequency (in MHz).

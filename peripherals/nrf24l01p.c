@@ -40,7 +40,6 @@
 #define NRF24L01P_RX_FIFO_SIZE  32
 #define NRF24L01P_TX_FIFO_SIZE  32
 
-
 //*****************************************************************************
 //
 //! Callback function for SPI transactions with the nRF24L01+.
@@ -271,13 +270,43 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
 }
 
 //*****************************************************************************
+//! Put the nRF24L01+ into Receive mode.
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//!
+//! This function puts the nRF24L01+ device into Receive Mode by setting the
+//! Chip Enable pin high if PRX or low if PTX.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PSetReceiveMode(tNRF24L01P *psInst)
+{
+}
+
+//*****************************************************************************
+//! Put the nRF24L01+ into Transmit mode
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//!
+//! This function puts the nRF24L01+ device into Transmit Mode by setting the
+//! Chip Enable pin low if PTX or low if PRX.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PSetTransmitMode(tNRF24L01P *psInst)
+{
+}
+
+//*****************************************************************************
 //! Initialize the NRF24L01P driver.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //! \param psSPIInst is a pointer to the SPI master driver instance data.
-//! \param ui32CSPort is the base port of the Chip Select.
+//! \param ui32CSBase is the base port of the Chip Select.
 //! \param ui8CSPin is the pin of the Chip Select.
-//! \param ui32CEPort is the base port of the Chip Enable (RX/TX mode).
+//! \param ui32CEBase is the base port of the Chip Enable (RX/TX mode).
 //! \param ui8CEPin is the pin of the Chip Enable (RX/TX mode).
 //! \param pfnCallback is the function to be called when the initialization has
 //! completed (can be \b NULL if a callback is not required).
@@ -331,7 +360,13 @@ void NRF24L01PSetFrequency(tNRF24L01P *psInst, uint16_t ui16Freq)
         //
         // Update psInst
         //
+        psInst->ui16Freq = ui16Freq;
 
+        //
+        // Start SPI transfer
+        //
+        SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                     psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
     }
 }
 
@@ -413,7 +448,7 @@ void NRF24L01PSetAirDataRate(tNRF24L01P *psInst, uint8_t ui8AirDataRate)
 //!
 //! This function returns the device operating data rate.
 //!
-//! \return the air data rate in kbps (250, 1000 or 2000).
+//! \return Returns the air data rate in kbps (250, 1000 or 2000).
 //
 //*****************************************************************************
 uint16_t NRF24L01PGetAirDataRate(tNRF24L01P *psInst)
@@ -443,7 +478,7 @@ void NRF24L01PSetCrcWidth(tNRF24L01P *psInst, uint8_t ui8Width)
 //!
 //! This function returns the device CRC encoding scheme.
 //!
-//! \return the number of bytes for the CRC (1 or 2).
+//! \return Returns the number of bytes for the CRC (1 or 2).
 //
 //*****************************************************************************
 uint8_t NRF24L01PGetCrcWidth(tNRF24L01P *psInst)
@@ -470,10 +505,16 @@ void NRF24L01PSetAddrWidth(tNRF24L01P *psInst, uint8_t ui8Width)
 }
 
 //*****************************************************************************
-//!
+//! Returns the address width for all pipes (RX/TX)
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! \return
+//!
+//! Note that Pipes 0 & 1 have 3, 4 or 5 byte addresses, while Pipes 2..5 only
+//! use the lowest byte (bits 7..0) of the address provided here, and use 2, 3
+//! or 4 bytes from Pipe 1's address. The width parameter is ignored for
+//! Pipes 2..5.
+//!
+//! \return Returns the address width in bytes of pipes.
 //
 //*****************************************************************************
 uint8_t NFR24L01PGetAddrWidth(tNRF24L01P *psInst)
@@ -489,7 +530,8 @@ uint8_t NFR24L01PGetAddrWidth(tNRF24L01P *psInst)
 //! LSBytes are used for addressing.
 //! \param ui8Pipe pipe to associate the address with (0..5).
 //!
-//! This function
+//! This function sets the receive address for a given pipe. Must comply with
+//! set address width.
 //!
 //! \return None.
 //
@@ -504,7 +546,8 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //! \param ui64Address address for transmission.
 //!
-//!
+//! This function sets the destination address for transmitting. Must comply
+//! with set address width
 //!
 //! \return None.
 //
@@ -519,9 +562,10 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //! \param ui8Pipe pipe to get the address from (0..5, default 0).
 //!
+//! This function returns the receiving address for a given pipe. Will be the
+//! size of the set address width.
 //!
-//!
-//! \return the address associated with the particular pipe.
+//! \return Returns the address associated with the particular pipe.
 //
 //*****************************************************************************
 uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe)
@@ -529,13 +573,14 @@ uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe)
 }
 
 //*****************************************************************************
-//! Get the Transmit address.
+//! Return the Transmit address.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
+//!  This function returns the destination address for transmitting. Will be
+//! the size of the set address width.
 //!
-//!
-//! \return address address for transmission
+//! \return Returns destination address for transmission.
 //
 //*****************************************************************************
 uint64_t NRF24L01PGetTxAddress(tNRF24L01P *psInst)
@@ -549,8 +594,10 @@ uint64_t NRF24L01PGetTxAddress(tNRF24L01P *psInst)
 //! \param ui8Size the size of the transfer, in bytes (1..32).
 //! \param ui8Pipe pipe for the transfer (0..5, default 0).
 //!
-//!
-//!
+//! This function sets the static transfer size for the RX payload. This is
+//! used for each pipe only if Dynamic Payload isn't used. With static payload,
+//! the payload length on the transmitter side is set by the number of bytes
+//! clocked into the TX FIFO and must be equal to RX_PW_Px on the receiver size.
 //!
 //! \return None.
 //
@@ -560,13 +607,15 @@ void NRF24L01PSetTransferSize(tNRF24L01P *psInst, uint8_t ui8Size, uint8_t ui8Pi
 }
 
 //*****************************************************************************
-//! Get the transfer size.
+//! Return the transfer size.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
+//! \param ui8Pipe is the pipe to receive the transfer size for (0..5)
 //!
+//! This function returns the defined payload size to be used when utilizing
+//! static payload transfer sizes.
 //!
-//!
-//! \return the size of the transfer, in bytes (1..32).
+//! \return Returns the size of the transfer, in bytes (1..32).
 //
 //*****************************************************************************
 int32_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe)
@@ -575,43 +624,15 @@ int32_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe)
 
 
 //*****************************************************************************
-//! Get the RPD (Received Power Detector) state.
+//! Returns the RPD (Received Power Detector) state.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
+//! This function returns the current received power detector.
 //!
-//!
-//! \return true if the received power exceeded -64dBm
+//! \return Returns true if the received power exceeded -64dBm
 //*****************************************************************************
 bool NRF24L01PGetRPD(tNRF24L01P *psInst)
-{
-}
-
-//*****************************************************************************
-//! Put the nRF24L01+ into Receive mode
-//!
-//! \param psInst is a pointer to the NRF24L01P instance data.
-//!
-//!
-//!
-//! \return None.
-//
-//*****************************************************************************
-void NRF24L01PSetReceiveMode(tNRF24L01P *psInst)
-{
-}
-
-//*****************************************************************************
-//! Put the nRF24L01+ into Transmit mode
-//!
-//! \param psInst is a pointer to the NRF24L01P instance data.
-//!
-//!
-//!
-//! \return None.
-//
-//*****************************************************************************
-void NRF24L01PSetTransmitMode(tNRF24L01P *psInst)
 {
 }
 
@@ -702,21 +723,6 @@ int32_t NRF24L01PReceive(tNRF24L01P *psInst, uint8_t ui8Pipe,
 }
 
 //*****************************************************************************
-//! Determine if there is data available to read
-//!
-//! \param psInst is a pointer to the NRF24L01P instance data.
-//! \param ui8Pipe the receive pipe to check for data.
-//!
-//!
-//!
-//! \return true if the is data waiting in the given pipe
-//
-//*****************************************************************************
-bool NRF24L01PReadable(tNRF24L01P *psInst, uint8_t ui8Pipe)
-{
-}
-
-//*****************************************************************************
 //! Disable all receive pipes
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
@@ -735,7 +741,7 @@ void NRF24L01PDisableAllRxPipes(tNRF24L01P *psInst)
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
-//!
+//! This function disables all Auto Acknowledge for all pipes.
 //!
 //! \return None.
 //
@@ -750,7 +756,7 @@ void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst)
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //! \param ui8Pipe the receive pipe
 //!
-//!
+//! This function enables Auto Acknowledge on a per pipe basis.
 //!
 //! \return None.
 //
@@ -764,7 +770,8 @@ void NRF24L01PEnableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe)
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
-//!
+//! This function disables the auto-retransmit functionality of the NRF24L01P
+//! driver used when Auto Acknowledge enabled and an ACK packet is not received.
 //!
 //! \return None.
 //
@@ -780,7 +787,8 @@ void NRF24L01PDisableAutoRetransmit(tNRF24L01P *psInst)
 //! \param ui16Delay the delay between retransmits, in uS (250uS..4000uS).
 //! \param ui8Count number of retransmits before generating an error (1..15).
 //!
-//!
+//! This function sets the delay between Auto Retransmits and the number of
+//! times to perform retransmission before generating an error.
 //!
 //! \return None.
 //

@@ -49,6 +49,10 @@
 #include "utils/uartstdio.h"
 #include "utils/cmdline.h"
 
+// Just in case we missed it.
+#ifndef NULL
+#define NULL 0
+#endif;
 
 #include "../peripherals/bq27441.h"
 #include "../peripherals/gpio.h"
