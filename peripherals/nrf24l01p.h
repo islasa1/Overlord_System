@@ -34,6 +34,11 @@ extern "C"
 typedef struct
 {
     //
+    // Reserved.
+    //
+    unsigned int                : 1;
+
+    //
     //! Interrupt not reflected on IRQ pin.
     //
     unsigned int ui1MaskRxDR    : 1;
@@ -80,7 +85,7 @@ typedef struct
 typedef struct
 {
     //
-    // Skip bit 1, no identifier
+    // Reserved.
     //
     unsigned int                : 1;
 
@@ -124,7 +129,7 @@ typedef struct
 typedef struct
 {
     //
-    // Skip bit 1, no identifier
+    // Reserved.
     //
     unsigned int                : 1;
 
