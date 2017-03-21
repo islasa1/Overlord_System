@@ -160,7 +160,48 @@ typedef struct
 
 } tNRF24L01P_STATUS;
 
+//*****************************************************************************
+//
+//! Structure used to store addresses of nRF24L01+
+//
+//*****************************************************************************
+typedef struct
+{
+    //
+    //! Pipe 0 Receive Address
+    //
+    uint64_t ui64RxAddrP0;
 
+    //
+    //! Pipe 1 Receive Address
+    //
+    uint64_t ui64RxAddrP1;
+
+    //
+    //! Pipe 2 Receive Address (MSBytes shared with Pipe 1)
+    //
+    uint8_t  ui8RxAddrP2;
+
+    //
+    //! Pipe 3 Receive Address (MSBytes shared with Pipe 1)
+    //
+    uint8_t  ui8RxAddrP3;
+
+    //
+    //! Pipe 4 Receive Address (MSBytes shared with Pipe 1)
+    //
+    uint8_t  ui8RxAddrP4;
+
+    //
+    //! Pipe 5 Receive Address (MSBytes shared with Pipe 1)
+    //
+    uint8_t  ui8RxAddrP5;
+
+    //
+    //! Transmit Address
+    //
+    uint64_t  ui64TxAddr;
+} tNRF24L01P_Addresses;
 
 //*****************************************************************************
 //
@@ -229,6 +270,11 @@ typedef struct
     //! Enabled RX Addresses.
     //
     tNRF24L01P_Pipes sEnabledRxAddr
+
+    //
+    //! Stores the RX/TX Addresses
+    //
+    tNRF24L01P_Addresses;
 
     //
     //! The state of the state machine used while accessing the nRF24L01+.

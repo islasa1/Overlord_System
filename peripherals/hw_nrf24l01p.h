@@ -89,6 +89,16 @@
 #define NRF24L01P_CONFIG_PRIM_RX                                              \
                                 0x01    // RX/TX control - 1: PRX, 0: PTX
 
+#define NRF24L01P_UI64_TO_PUI8(ui64, pui8)                                    \
+                                pui8[0] = (ui64 & 0xFF00000000000000) >> 56;  \
+                                pui8[1] = (ui64 & 0x00FF000000000000) >> 48;  \
+                                pui8[2] = (ui64 & 0x0000FF0000000000) >> 40;  \
+                                pui8[3] = (ui64 & 0x000000FF00000000) >> 32;  \
+                                pui8[4] = (ui64 & 0x00000000FF000000) >> 24;  \
+                                pui8[5] = (ui64 & 0x0000000000FF0000) >> 16;  \
+                                pui8[6] = (ui64 & 0x000000000000FF00) >> 8;   \
+                                pui8[7] = (ui64 & 0x00000000000000FF);        \
+
 //*****************************************************************************
 //
 // The following are defines for the bit fields in the NRF24L01P_O_EN_AA

@@ -808,26 +808,62 @@ uint8_t NFR24L01PGetAddrWidth(tNRF24L01P *psInst)
 //! This function sets the receive address for a given pipe. Must comply with
 //! set address width.
 //!
+//! Note Pipe 0 and Pipe 1 have address widths of up to 5 bytes, and all other
+//! pipes have 1 byte addresses, with the remaining MSBytes to achieve address
+//! width (set by NRF24L01P_O_SETUP_AW register) taken from Pipe 1[39:8].
+//!
 //! \return None.
 //
 //*****************************************************************************
-void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8Pipe)
+void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
+                           uint8_t ui8Pipe)
 {
+    //
+    // Make sure Pipe Number is within bounds.
+    //
+    if(ui8Pipe > 5)
+    {
+        return;
+    }
+
+    uint8_t pui8Address[8], ui8TransferSize;
+
+    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Adress);
+
     //
     // SPI command write register and address
     //
-    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_RF_SETUP;
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER |
+            (NRF24L01P_O_RX_ADDR_P0 + ui8Pipe);
 
-    //
-    // Default, clear old values
-    //
-    psInst->pui8Data[1] = 0x00;
+    if(ui8Pipe > 1)
+    {
+        //
+        // Only take LSByte
+        //
+        psInst->pui8Data[1] = pui8Address[7];
+
+        ui8TransferSize = 2;
+    }
+    else
+    {
+        for(int i = 0; i < psInst->ui8AddrWidth; i++)
+        {
+            //
+            // LSByte written first.
+            //
+            psInst->pui8Data[1 + i] = pui8Address[7 - i]
+        }
+
+        ui8TransferSize = 1 + psInst->ui8AddrWidth;
+    }
 
     //
     // Start SPI transfer
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
+                 psInst->pui8Data, NULL, ui8TransferSize,
+                 NRF24L01PCallback, psInst);
 }
 
 //*****************************************************************************
@@ -837,7 +873,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint8_t ui8
 //! \param ui64Address address for transmission.
 //!
 //! This function sets the destination address for transmitting. Must comply
-//! with set address width
+//! with set address width.
 //!
 //! \return None.
 //
@@ -847,18 +883,30 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
     //
     // SPI command write register and address
     //
-    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_RF_SETUP;
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_TX_ADDR;
+
+
+    uint8_t pui8Address[8];
+
+    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Adress);
 
     //
-    // Default, clear old values
+    // Use assigned address width
     //
-    psInst->pui8Data[1] = 0x00;
+    for(int i = 0; i < psInst->ui8AddrWidth; i++)
+    {
+        //
+        // LSByte written first.
+        //
+        psInst->pui8Data[1 + i] = pui8Address[7 - i]
+    }
 
     //
     // Start SPI transfer
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
+                 psInst->pui8Data, NULL, 1 + psInst->ui8AddrWidth,
+                 NRF24L01PCallback, psInst);
 }
 
 //*****************************************************************************
@@ -875,6 +923,7 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
 //*****************************************************************************
 uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe)
 {
+
 }
 
 //*****************************************************************************
