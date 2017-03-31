@@ -538,10 +538,8 @@ void CharterTest_1(void)
     OffScreenFlush(&g_sTFTContext);
 
     float percent = 0;
-    uint8_t charging = 0x01;
     while(1)
     {
-        CharterDrawScreen(percent * 360 / 100, (uint8_t) percent, charging < 0x0f);
         CharterShowBattPercent(GetBatteryPercentage (), GetStateOfCharge ());
         CharterDrawHeading(percent * 360 / 100);
         OffScreenFlush(&g_sTFTContext);
