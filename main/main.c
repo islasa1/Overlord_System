@@ -177,13 +177,17 @@ int main(void)
     //
     FPUInit();
 
+
+    CharterInit(true);
+    CharterSplashScreen();
+    CharterClrScreen();
+    CharterFlush();
+
     ConsoleInit();
     UARTprintf("IMU Visualization Test\r\n");
     UARTprintf("Initializing...\r\n");
     IMUInit(&g_sMPU9X50Inst, &g_sAK8963Inst, &g_sI2CMInst);
     BatteryInit ();
-    CharterInit(true);
-    CharterClrScreen();
     UARTprintf("Done\r\n");
 
     bool result;
