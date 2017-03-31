@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
+
 #include "spim_drv.h"
 #include "hw_nrf24l01p.h"
 
@@ -274,7 +277,22 @@ typedef struct
     //
     //! Stores the RX/TX Addresses
     //
-    tNRF24L01P_Addresses;
+    tNRF24L01P_Addresses sPipeAddr;
+
+    //
+    //! RX Payload size when using static payload (SPL) size
+    //
+    uint8_t pui8RxSPLSize[8];
+
+    //
+    //! Auto retransmit count
+    //
+    uint8_t ui8ARC;
+
+    //
+    //! Auto retransmit delay
+    //
+    uint8_t ui8ARD;
 
     //
     //! The state of the state machine used while accessing the nRF24L01+.
@@ -318,14 +336,14 @@ extern void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address, uint
 extern uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe);
 extern uint64_t NRF24L01PGetTxAddress(tNRF24L01P *psInst);
 extern void NRF24L01PSetTransferSize(tNRF24L01P *psInst, uint8_t ui8Size, uint8_t ui8Pipe );
-extern int32_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe);
+extern uint8_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe);
 extern bool NRF24L01PGetRPD(tNRF24L01P *psInst);
 extern void NRF24L01PSetReceiveMode(tNRF24L01P *psInst);
 extern void NRF24L01PSetTransmitMode(tNRF24L01P *psInst);
 extern void NRF24L01PPowerUp(tNRF24L01P *psInst);
 extern void NRF24L01PPowerDown(tNRF24L01P *psInst);
-extern void NRF24L01PEnable(tNRF24L01P *psInst);
-extern void NRF24L01PDisable(tNRF24L01P *psInst);
+extern void NRF24L01PEnableMode(tNRF24L01P *psInst);
+extern void NRF24L01PDisableMode(tNRF24L01P *psInst);
 extern int32_t NRF24L01PWrite(tNRF24L01P *psInst, uint8_t ui8Pipe, uint8_t *ui8Data, uint8_t ui8Count);
 extern int32_t NRF24L01PRead(tNRF24L01P *psInst, uint8_t ui8Pipe, uint8_t *ui8Data, uint8_t ui8Count);
 extern bool NRF24L01PReadable(tNRF24L01P *psInst, uint8_t ui8Pipe);

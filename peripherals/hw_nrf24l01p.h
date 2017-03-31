@@ -89,6 +89,12 @@
 #define NRF24L01P_CONFIG_PRIM_RX                                              \
                                 0x01    // RX/TX control - 1: PRX, 0: PTX
 
+#define NRF24L01P_5BYTE_ADDR_M  0x000000FFFFFFFFFF
+#define NRF24L01P_4BYTE_ADDR_M  0x00000000FFFFFFFF
+#define NRF24L01P_3BYTE_ADDR_M  0x0000000000FFFFFF
+#define NRF24L01P_1BYTE_ADDR_M  0x00000000000000FF
+#define NRF24L01P_MSBYTES_ADDR_M                                              \
+                                0xFFFFFFFFFFFFFF00
 #define NRF24L01P_UI64_TO_PUI8(ui64, pui8)                                    \
                                 pui8[0] = (ui64 & 0xFF00000000000000) >> 56;  \
                                 pui8[1] = (ui64 & 0x00FF000000000000) >> 48;  \
@@ -166,7 +172,8 @@
                                         // ...
                                         // 1111 - Wait 4000us
 #define NRF24L01P_SETUP_RETR_ARD_DELAY(us)                                    \
-                                (((uint8_t)(us / 250) - 1) << 4)              \
+                                (((uint8_t)(us / 250) - 1) <<                 \
+                                 NRF24L01P_SETUP_RETR_ARD_S)                  \
                                 & NRF24L01P_SETUP_RETR_ARD)
                                         // Wait us microseconds
 #define NRF24L01P_SETUP_RETR_ARC_M                                            \
@@ -314,7 +321,7 @@
 #define NRF24L01P_RX_PW_S          0
 #define NRF24L01P_RX_PW_BYTES   0x3F    // Number of bytes in RX payload
                                         // 0: Pipe not used
-                                        // Common for all pipes
+                                        // Common mask for all pipes
 
 //*****************************************************************************
 //
