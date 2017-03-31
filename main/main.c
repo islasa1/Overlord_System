@@ -107,11 +107,11 @@ volatile uint_fast8_t g_vui8AK8963DoneFlag = false, g_vui8AK8963ErrorFlag = 0;
 
 void Timer0IntHandler(void)
 {
-  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
     IMUDataRead();
 
-  IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
+    IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
     UpdateHeading(g_pfGyro, g_pfMag);
     UpdatePosition(g_pfAccel);
     g_pfHead[0] = GetRelativeHeading(0, 0);
