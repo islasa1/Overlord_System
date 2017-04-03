@@ -114,12 +114,15 @@ void Timer0IntHandler(void)
     IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
     UpdateHeading(g_pfGyro, g_pfMag);
     UpdatePosition(g_pfAccel);
-    g_pfHead[0] = GetRelativeHeading(0, 0);
+}
+
+void Timer1IntHandler(void)
+{
+    g_pfHead[0] = GetRelativeHeading(0,0);
     CharterDrawHeading(g_pfHead[0]);
     CharterShowBattPercent( 0, 0);
     CharterFlush();
 }
-
 
 //*****************************************************************************
 //
@@ -192,22 +195,30 @@ int main(void)
     if (result)
     {
         IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
+        ReadCalibrationData();
         InitPosition(g_pfAccel);
         InitHeading(g_pfMag);
 
         SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
         TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-        TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 10);
+        TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC);
+        TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 50);
+        TimerLoadSet(TIMER1_BASE, TIMER_A, SysCtlClockGet() / 10);
 
         IntMasterDisable();
 
         IntEnable(INT_TIMER0A);
+        IntEnable(INT_TIMER1A);
         TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+        TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
         IntRegister(INT_TIMER0A, Timer0IntHandler);
+        IntRegister(INT_TIMER1A, Timer1IntHandler);
 
         IntMasterEnable();
 
         TimerEnable(TIMER0_BASE, TIMER_A);
+        TimerEnable(TIMER1_BASE, TIMER_A);
     }
 
     while(1)

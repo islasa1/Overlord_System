@@ -21,6 +21,7 @@
 #endif
 
 #define G 9.79193
+#define COMPASS_VAR (g_sCalData.fXMagVar+g_sCalData.fYMagVar)
 
 //*****************************************************************************
 //
@@ -29,6 +30,8 @@
 //*****************************************************************************
 typedef struct
 {
+    float fXAccelVar;
+    float fYAccelVar;
     float fXAccelBias;
     float fYAccelBias;
     float fZAccelBias;
@@ -41,6 +44,7 @@ typedef struct
     float fZYAccelAlignment;
     float fXZAccelAlignment;
     float fYZAccelAlignment;
+    float fZGyroVar;
     float fXGyroBias;
     float fYGyroBias;
     float fZGyroBias;
@@ -53,6 +57,8 @@ typedef struct
     float fZYGyroAlignment;
     float fXZGyroAlignment;
     float fYZGyroAlignment;
+    float fXMagVar;
+    float fYMagVar;
 } tCalibrationData;
 
 tCalibrationData g_sCalData;
@@ -81,6 +87,8 @@ float g_pfCurrentVelocity[2];
 void
 ResetCalibrationData(void)
 {
+    g_sCalData.fXAccelVar = 0;
+    g_sCalData.fYAccelVar = 0;
     g_sCalData.fXAccelBias = 0;
     g_sCalData.fYAccelBias = 0;
     g_sCalData.fZAccelBias = 0;
@@ -93,6 +101,7 @@ ResetCalibrationData(void)
     g_sCalData.fZYAccelAlignment = 0;
     g_sCalData.fXZAccelAlignment = 0;
     g_sCalData.fYZAccelAlignment = 0;
+    g_sCalData.fZGyroVar = 0;
     g_sCalData.fXGyroBias = 0;
     g_sCalData.fYGyroBias = 0;
     g_sCalData.fZGyroBias = 0;
@@ -105,6 +114,8 @@ ResetCalibrationData(void)
     g_sCalData.fZYGyroAlignment = 0;
     g_sCalData.fXZGyroAlignment = 0;
     g_sCalData.fYZGyroAlignment = 0;
+    g_sCalData.fXMagVar = 0;
+    g_sCalData.fYMagVar = 0;
 }
 
 //*****************************************************************************
@@ -201,20 +212,18 @@ InitHeading(float *pfMag)
 void
 UpdateHeading(float *pfGyro, float *pfMag)
 {
-    pfGyro[0] -= g_sCalData.fXGyroBias;
-    pfGyro[1] -= g_sCalData.fYGyroBias;
+    static int iSamples = 1;
+
     pfGyro[2] -= g_sCalData.fZGyroBias;
 
-    pfGyro[0] = pfGyro[0] * g_sCalData.fXGyroScale + pfGyro[1] * g_sCalData.fYXGyroAlignment
-               + pfGyro[2] * g_sCalData.fZXGyroAlignment;
-    pfGyro[1] = pfGyro[1] * g_sCalData.fYGyroScale + pfGyro[0] * g_sCalData.fXYGyroAlignment
-               + pfGyro[2] * g_sCalData.fZYGyroAlignment;
-    pfGyro[2] = pfGyro[2] * g_sCalData.fZGyroScale + pfGyro[0] * g_sCalData.fXZGyroAlignment
-               + pfGyro[1] * g_sCalData.fYZGyroAlignment;
+    pfGyro[2] = pfGyro[2] * g_sCalData.fZGyroScale + pfGyro[0] * g_sCalData.fZXGyroAlignment
+               + pfGyro[1] * g_sCalData.fZYGyroAlignment;
 
-    float fHeadingGyro = g_fCurrentHeading + pfGyro[2] * TIMESTEP;
+    float fHeadingGyro = g_fCurrentHeading - pfGyro[2] * TIMESTEP;
     float fHeadingMag = atan2(-pfMag[1], pfMag[0]);
-    float fGyroWeight = .75;
+    float fGyroWeight = COMPASS_VAR / (COMPASS_VAR + g_sCalData.fZGyroVar * TIMESTEP * iSamples);
+    iSamples++;
+
     //
     // Correction to avoid negative values.
     //
@@ -260,12 +269,12 @@ UpdatePosition(float *pfAccel)
     pfAccel[1] -= g_sCalData.fYAccelBias;
     pfAccel[2] -= g_sCalData.fZAccelBias;
 
-    pfAccel[0] = pfAccel[0] * g_sCalData.fXAccelScale + pfAccel[1] * g_sCalData.fYXAccelAlignment
-               + pfAccel[2] * g_sCalData.fZXAccelAlignment;
-    pfAccel[1] = pfAccel[1] * g_sCalData.fYAccelScale + pfAccel[0] * g_sCalData.fXYAccelAlignment
-               + pfAccel[2] * g_sCalData.fZYAccelAlignment;
-    pfAccel[2] = pfAccel[2] * g_sCalData.fZAccelScale + pfAccel[0] * g_sCalData.fXZAccelAlignment
-               + pfAccel[1] * g_sCalData.fYZAccelAlignment;
+    pfAccel[0] = pfAccel[0] * g_sCalData.fXAccelScale + pfAccel[1] * g_sCalData.fXYAccelAlignment
+               + pfAccel[2] * g_sCalData.fXZAccelAlignment;
+    pfAccel[1] = pfAccel[1] * g_sCalData.fYAccelScale + pfAccel[0] * g_sCalData.fYXAccelAlignment
+               + pfAccel[2] * g_sCalData.fYZAccelAlignment;
+    pfAccel[2] = pfAccel[2] * g_sCalData.fZAccelScale + pfAccel[0] * g_sCalData.fZXAccelAlignment
+               + pfAccel[1] * g_sCalData.fZYAccelAlignment;
 
     //
     // Rotate acceleration data
@@ -286,6 +295,11 @@ UpdatePosition(float *pfAccel)
     g_pfCurrentVelocity[1] += pfAccel[1] * TIMESTEP;
 }
 
+float GetHeading()
+{
+    return g_fCurrentHeading;
+}
+
 //*****************************************************************************
 //
 //! Calculates the relative heading to the absolute position supplied.
@@ -302,10 +316,10 @@ UpdatePosition(float *pfAccel)
 float
 GetRelativeHeading(float x, float y)
 {
-    float fRelativeX = x - g_fAbsoluteX;
-    float fRelativeY = y - g_fAbsoluteY;
+    float fRelativeX = g_fAbsoluteX - x;
+    float fRelativeY = g_fAbsoluteY - y;
 
-    return atan2(-fRelativeY, fRelativeX) + g_fCurrentHeading;
+    return atan2(fRelativeY, fRelativeX) + g_fCurrentHeading;
 }
 
 
