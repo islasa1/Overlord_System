@@ -12,7 +12,9 @@
 #include "driverlib/eeprom.h"
 #include "driverlib/sysctl.h"
 
-#define TIMESTEP .1
+#include "../sensors/comp_dcm.h"
+
+#define TIMESTEP .02
 #define CALIBRATION_DATA_ADDRESS 0
 #define CALIBRATION_DATA_SIZE sizeof(tCalibrationData)
 
@@ -70,8 +72,8 @@ tCalibrationData g_sCalData;
 //*****************************************************************************
 float g_fAbsoluteX;
 float g_fAbsoluteY;
-float g_fCurrentHeading;
 float g_pfCurrentVelocity[2];
+tCompDCM g_sDCM;
 
 //*****************************************************************************
 //
@@ -152,6 +154,53 @@ ReadCalibrationData(void)
 
 //*****************************************************************************
 //
+//! Applies the calibration to the sensor data.
+//!
+//! \param pfAccel is a pointer to the accelerometer data to be corrected.
+//! \param pfGyro is a pointer to the gyroscope data to be corrected.
+//! \param pfMag is a pointer to the magnetometer data to be corrected.
+//!
+//! This function applies the calibration data in the calibration data struct
+//! to the data given. The resulting data is corrected for bias, scale,
+//! and misalignment.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void
+ApplyCalibration(float pfAccel[3], float pfGyro[3])
+{
+    //
+    // Correct accelerometer data
+    //
+    pfAccel[0] -= g_sCalData.fXAccelBias;
+    pfAccel[1] -= g_sCalData.fYAccelBias;
+    pfAccel[2] -= g_sCalData.fZAccelBias;
+
+    pfAccel[0] = pfAccel[0] * g_sCalData.fXAccelScale + pfAccel[1] * g_sCalData.fXYAccelAlignment
+               + pfAccel[2] * g_sCalData.fXZAccelAlignment;
+    pfAccel[1] = pfAccel[1] * g_sCalData.fYAccelScale + pfAccel[0] * g_sCalData.fYXAccelAlignment
+               + pfAccel[2] * g_sCalData.fYZAccelAlignment;
+    pfAccel[2] = pfAccel[2] * g_sCalData.fZAccelScale + pfAccel[0] * g_sCalData.fZXAccelAlignment
+               + pfAccel[1] * g_sCalData.fZYAccelAlignment;
+
+    //
+    // Correct gyroscope data
+    //
+    pfGyro[0] -= g_sCalData.fXGyroBias;
+    pfGyro[1] -= g_sCalData.fYGyroBias;
+    pfGyro[2] -= g_sCalData.fZGyroBias;
+
+    pfGyro[0] = pfGyro[0] * g_sCalData.fXGyroScale + pfGyro[1] * g_sCalData.fXYGyroAlignment
+               + pfGyro[2] * g_sCalData.fXZGyroAlignment;
+    pfGyro[1] = pfGyro[1] * g_sCalData.fYGyroScale + pfGyro[0] * g_sCalData.fYXGyroAlignment
+               + pfGyro[2] * g_sCalData.fYZGyroAlignment;
+    pfGyro[2] = pfGyro[2] * g_sCalData.fZGyroScale + pfGyro[0] * g_sCalData.fZXGyroAlignment
+               + pfGyro[1] * g_sCalData.fZYGyroAlignment;
+}
+
+//*****************************************************************************
+//
 //! Initialize the absolute position.
 //!
 //! \param pfAccel is an array of floats representing the initial accelerometer
@@ -165,7 +214,7 @@ ReadCalibrationData(void)
 //
 //*****************************************************************************
 void
-InitPosition(float *pfAccel)
+InitPosition()
 {
     g_fAbsoluteX = 0;
     g_fAbsoluteY = 0;
@@ -188,9 +237,10 @@ InitPosition(float *pfAccel)
 //
 //*****************************************************************************
 void
-InitHeading(float *pfMag)
+InitHeading(float pfAccel[3], float pfMag[3])
 {
-    g_fCurrentHeading = atan2(-pfMag[1], pfMag[0]);
+    CompDCMInit(&g_sDCM, TIMESTEP, .2, .6, .2);
+    CompDCMStart(&g_sDCM, pfAccel, pfMag);
 }
 
 //*****************************************************************************
@@ -210,16 +260,11 @@ InitHeading(float *pfMag)
 //
 //*****************************************************************************
 void
-UpdateHeading(float *pfGyro, float *pfMag)
+UpdateHeading(float pfAccel[3], float pfGyro[3], float pfMag[3])
 {
-    static int iSamples = 1;
+    CompDCMUpdate(&g_sDCM, pfAccel, pfGyro, pfMag);
 
-    pfGyro[2] -= g_sCalData.fZGyroBias;
-
-    pfGyro[2] = pfGyro[2] * g_sCalData.fZGyroScale + pfGyro[0] * g_sCalData.fZXGyroAlignment
-               + pfGyro[1] * g_sCalData.fZYGyroAlignment;
-
-    float fHeadingGyro = g_fCurrentHeading - pfGyro[2] * TIMESTEP;
+    /*float fHeadingGyro = g_fCurrentHeading - pfGyro[2] * TIMESTEP;
     float fHeadingMag = atan2(-pfMag[1], pfMag[0]);
     float fGyroWeight = COMPASS_VAR / (COMPASS_VAR + g_sCalData.fZGyroVar * TIMESTEP * iSamples);
     iSamples++;
@@ -241,7 +286,7 @@ UpdateHeading(float *pfGyro, float *pfMag)
     }
 
     g_fCurrentHeading = fHeadingGyro * fGyroWeight +
-                        fHeadingMag * (1 - fGyroWeight);
+                        fHeadingMag * (1 - fGyroWeight);*/
 }
 
 //*****************************************************************************
@@ -260,44 +305,28 @@ UpdateHeading(float *pfGyro, float *pfMag)
 //
 //*****************************************************************************
 void
-UpdatePosition(float *pfAccel)
+UpdatePosition(float pfAccel[3])
 {
+    float pfRotated[2];
     //
-    // Apply calibration
+    // Rotate acceleration data. We only need the X and Y data.
     //
-    pfAccel[0] -= g_sCalData.fXAccelBias;
-    pfAccel[1] -= g_sCalData.fYAccelBias;
-    pfAccel[2] -= g_sCalData.fZAccelBias;
-
-    pfAccel[0] = pfAccel[0] * g_sCalData.fXAccelScale + pfAccel[1] * g_sCalData.fXYAccelAlignment
-               + pfAccel[2] * g_sCalData.fXZAccelAlignment;
-    pfAccel[1] = pfAccel[1] * g_sCalData.fYAccelScale + pfAccel[0] * g_sCalData.fYXAccelAlignment
-               + pfAccel[2] * g_sCalData.fYZAccelAlignment;
-    pfAccel[2] = pfAccel[2] * g_sCalData.fZAccelScale + pfAccel[0] * g_sCalData.fZXAccelAlignment
-               + pfAccel[1] * g_sCalData.fZYAccelAlignment;
-
-    //
-    // Rotate acceleration data
-    //
-    pfAccel[0] = cos(g_fCurrentHeading)*pfAccel[0] - sin(g_fCurrentHeading)*pfAccel[1];
-    pfAccel[1] = sin(g_fCurrentHeading)*pfAccel[0] + cos(g_fCurrentHeading)*pfAccel[1];
+    pfRotated[0] = g_sDCM.ppfDCM[0][0]*pfAccel[0] + g_sDCM.ppfDCM[0][1]*pfAccel[1]
+               + g_sDCM.ppfDCM[0][2]*pfAccel[2];
+    pfRotated[1] = g_sDCM.ppfDCM[1][0]*pfAccel[0] + g_sDCM.ppfDCM[1][1]*pfAccel[1]
+               + g_sDCM.ppfDCM[1][2]*pfAccel[2];
 
     //
     // Update the position
     //
-    g_fAbsoluteX += g_pfCurrentVelocity[0] * TIMESTEP + pfAccel[0] * TIMESTEP * TIMESTEP / 2;
-    g_fAbsoluteY += g_pfCurrentVelocity[1] * TIMESTEP + pfAccel[1] * TIMESTEP * TIMESTEP / 2;
+    g_fAbsoluteX += g_pfCurrentVelocity[0] * TIMESTEP + pfRotated[0] * TIMESTEP * TIMESTEP / 2;
+    g_fAbsoluteY += g_pfCurrentVelocity[1] * TIMESTEP + pfRotated[1] * TIMESTEP * TIMESTEP / 2;
 
     //
     // Update the velocities
     //
-    g_pfCurrentVelocity[0] += pfAccel[0] * TIMESTEP;
-    g_pfCurrentVelocity[1] += pfAccel[1] * TIMESTEP;
-}
-
-float GetHeading()
-{
-    return g_fCurrentHeading;
+    g_pfCurrentVelocity[0] += pfRotated[0] * TIMESTEP;
+    g_pfCurrentVelocity[1] += pfRotated[1] * TIMESTEP;
 }
 
 //*****************************************************************************
@@ -319,7 +348,7 @@ GetRelativeHeading(float x, float y)
     float fRelativeX = g_fAbsoluteX - x;
     float fRelativeY = g_fAbsoluteY - y;
 
-    return atan2(fRelativeY, fRelativeX) + g_fCurrentHeading;
+    return atan2(fRelativeY, fRelativeX) + atan2(g_sDCM.ppfDCM[1][0], g_sDCM.ppfDCM[0][0]);
 }
 
 

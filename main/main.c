@@ -112,7 +112,8 @@ void Timer0IntHandler(void)
     IMUDataRead();
 
     IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
-    UpdateHeading(g_pfGyro, g_pfMag);
+    ApplyCalibration(g_pfAccel, g_pfGyro);
+    UpdateHeading(g_pfAccel, g_pfGyro, g_pfMag);
     UpdatePosition(g_pfAccel);
 }
 
@@ -196,8 +197,9 @@ int main(void)
     {
         IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
         ReadCalibrationData();
-        InitPosition(g_pfAccel);
-        InitHeading(g_pfMag);
+        ApplyCalibration(g_pfAccel, g_pfGyro);
+        InitPosition();
+        InitHeading(g_pfAccel, g_pfMag);
 
         SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
         SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
