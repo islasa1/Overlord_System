@@ -107,11 +107,11 @@ volatile uint_fast8_t g_vui8AK8963DoneFlag = false, g_vui8AK8963ErrorFlag = 0;
 
 void Timer0IntHandler(void)
 {
-  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
     IMUDataRead();
 
-  IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
+    IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
     UpdateHeading(g_pfGyro, g_pfMag);
     UpdatePosition(g_pfAccel);
     g_pfHead[0] = GetRelativeHeading(0, 0);
@@ -177,13 +177,17 @@ int main(void)
     //
     FPUInit();
 
+
+    CharterInit(true);
+    CharterSplashScreen();
+    CharterClrScreen();
+    CharterFlush();
+
     ConsoleInit();
     UARTprintf("IMU Visualization Test\r\n");
     UARTprintf("Initializing...\r\n");
     IMUInit(&g_sMPU9X50Inst, &g_sAK8963Inst, &g_sI2CMInst);
     BatteryInit ();
-    CharterInit(true);
-    CharterClrScreen();
     UARTprintf("Done\r\n");
 
     bool result;

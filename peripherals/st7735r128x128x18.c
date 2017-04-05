@@ -97,6 +97,7 @@
 //*****************************************************************************
 #define DISPLAY_SSI_PERIPH          SYSCTL_PERIPH_SSI0
 #define DISPLAY_SSI_GPIO_PERIPH     SYSCTL_PERIPH_GPIOA
+#define DISPLAY_DC_GPIO_PERIPH      SYSCTL_PERIPH_GPIOB
 #define DISPLAY_RST_GPIO_PERIPH     SYSCTL_PERIPH_GPIOD
 #define DISPLAY_PWR_GPIO_PERIPH     SYSCTL_PERIPH_GPIOC
 
@@ -139,8 +140,8 @@
 // Defines the port and pins for the display Data/Command (D/C) signal.
 //
 //*****************************************************************************
-#define DISPLAY_D_C_PORT            GPIO_PORTA_BASE
-#define DISPLAY_D_C_PIN             GPIO_PIN_4
+#define DISPLAY_D_C_PORT            GPIO_PORTB_BASE
+#define DISPLAY_D_C_PIN             GPIO_PIN_6
 
 //*****************************************************************************
 //
@@ -901,6 +902,7 @@ ST7735R128x128x18PeriphInit(void)
     //
     MAP_SysCtlPeripheralEnable(DISPLAY_SSI_PERIPH);
     MAP_SysCtlPeripheralEnable(DISPLAY_SSI_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(DISPLAY_DC_GPIO_PERIPH);
     MAP_SysCtlPeripheralEnable(DISPLAY_RST_GPIO_PERIPH);
     MAP_SysCtlPeripheralEnable(DISPLAY_PWR_GPIO_PERIPH);
 
