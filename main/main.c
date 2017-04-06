@@ -83,10 +83,10 @@
 #define MPU9X50_PITCH   1
 #define MPU9X50_YAW     2
 
-float g_pfAccel[3] = { 0 };
-float g_pfGyro[3] = { 0 };
-float g_pfMag[3] = { 0 };
-float g_pfHead[3] = { 0 };
+float g_pfAccel[3] = { 0, 0, 0 };
+float g_pfGyro[3] = { 0, 0, 0 };
+float g_pfMag[3] = { 0, 0, 0 };
+float g_fHead = 0;
 
 // Global instance structures for data acquisition
 tI2CMInstance g_sI2CMInst;
@@ -112,15 +112,20 @@ void Timer0IntHandler(void)
     IMUDataRead();
 
     IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
-    ApplyCalibration(g_pfAccel, g_pfGyro);
-    UpdateHeading(g_pfAccel, g_pfGyro, g_pfMag);
+    UpdateHeading(g_pfGyro, g_pfMag);
     UpdatePosition(g_pfAccel);
 }
 
 void Timer1IntHandler(void)
 {
-    g_pfHead[0] = GetRelativeHeading(0,0);
-    CharterDrawHeading(g_pfHead[0]);
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+
+    float x, y;
+
+    GetPosition(&x, &y);
+    CharterDrawPosition(x, y);
+    g_fHead = GetRelativeHeading(0,0);
+    CharterDrawHeading(g_fHead);
     CharterShowBattPercent( 0, 0);
     CharterFlush();
 }
@@ -168,7 +173,7 @@ void ConsoleInit(void)
  }
 
 int main(void)
-{
+ {
     //
     // Set the clocking to run at 80MHz.
     //
@@ -197,15 +202,14 @@ int main(void)
     {
         IMUDataGetFloat(g_pfAccel, g_pfGyro, g_pfMag);
         ReadCalibrationData();
-        ApplyCalibration(g_pfAccel, g_pfGyro);
-        InitPosition();
-        InitHeading(g_pfAccel, g_pfMag);
+        InitPosition(g_pfAccel);
+        InitHeading(g_pfMag);
 
         SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
         SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
         TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
         TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC);
-        TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 50);
+        TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 100);
         TimerLoadSet(TIMER1_BASE, TIMER_A, SysCtlClockGet() / 10);
 
         IntMasterDisable();

@@ -10,12 +10,11 @@
 
 extern void ReadCalibrationData(void);
 extern void ResetCalibrationData(void);
-extern void ApplyCalibration(float pfAccel[3], float pfGyro[3]);
-extern void InitPosition();
-extern void InitHeading(float pfAccel[3], float pfMag[3]);
-extern void UpdateHeading(float pfAccel[3], float pfGyro[3], float pfMag[3]);
-extern void UpdatePosition(float pfAccel[3]);
+extern void InitPosition(float *pfAccel);
+extern void InitHeading(float *pfMag);
+extern void UpdateHeading(float *pfGyro, float *pfMag);
+extern void UpdatePosition(float *pfAccel);
 extern float GetRelativeHeading(float x, float y);
-extern float GetHeading();
+extern void GetPosition(float *x, float *y);
 
 #endif /* __SENSORS_WINDROSE_MODULE_H__ */

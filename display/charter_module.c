@@ -106,6 +106,7 @@ uint32_t g_pui32Palette[] =
 //*****************************************************************************
 tRectangle g_sBattImageRect;
 tRectangle g_sBattPercentRect;
+tRectangle g_sPositionRect;
 
 typedef struct
 {
@@ -220,6 +221,14 @@ void CharterInit(bool bOffScreen)
     g_sBattPercentRect.i16YMax = 13;
 
     //
+    // Position text rectangle to clear it
+    //
+    g_sPositionRect.i16XMax = X_MAX;
+    g_sPositionRect.i16XMin = 0;
+    g_sPositionRect.i16YMax = Y_MAX;
+    g_sPositionRect.i16YMin = 50;
+
+    //
     // Change foreground for white text.
     //
     GrContextForegroundSet(&g_sTFTContext, ClrWhite);
@@ -312,7 +321,6 @@ void CharterShowBattPercent(uint8_t ui8Percentage, bool isCharging)
     GrContextForegroundSet(psContext, ClrBlack);
     GrRectFill(psContext, &g_sBattPercentRect);
 
-    GrContextBackgroundSet(psContext, ClrBlack);
     GrContextForegroundSet(psContext, ClrWhite);
     GrImageDraw(psContext, g_pui8BatteryIcon, X_MAX - 20, 5);
 
@@ -479,6 +487,28 @@ void CharterDrawHeading(float angle)
     // Save previous state
     //
     sPrevHeading = sHeading;
+}
+
+void CharterDrawPosition(float x, float y)
+{
+    char positionStr[26];
+    float fTemp1, fTemp2;
+    tContext *psContext;
+
+    psContext = &g_sOffScreenContext;
+
+    fTemp1 = (x - (int)x) * 10000;
+    if(fTemp1 < 0) fTemp1 *= -1;
+    fTemp2 = (y - (int)y) * 10000;
+    if(fTemp2 < 0) fTemp2 *= -1;
+    sprintf(positionStr, "X:%d.%d, Y:%d.%d", (int)x, (int)fTemp1, (int)y, (int)fTemp2);
+    GrContextForegroundSet(psContext, ClrBlack);
+    GrRectFill(psContext, &g_sPositionRect);
+
+    GrContextForegroundSet(psContext, ClrWhite);
+    GrImageDraw(psContext, g_pui8BatteryIcon, X_MAX - 20, 5);
+
+    GrStringDrawCentered(psContext, (const char*)positionStr, -1, 64, 110, false);
 }
 
 //****************************************************************************
