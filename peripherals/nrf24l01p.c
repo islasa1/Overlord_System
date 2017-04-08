@@ -20,9 +20,15 @@
 #define NRF24L01P_STATE_GET_RF_SETUP    8
 #define NRF24L01P_STATE_GET_ADR         9
 #define NRF24L01P_STATE_GET_CONFIG      10
-#define NRF24L01P_STATE_GET_RX_ADDR     11
+#define NRF24L01P_STATE_GET_RX_ADDR0    11
+#define NRF24L01P_STATE_GET_RX_ADDR1    11
+#define NRF24L01P_STATE_GET_RX_ADDR2    11
+#define NRF24L01P_STATE_GET_RX_ADDR3    11
+#define NRF24L01P_STATE_GET_RX_ADDR4    11
+#define NRF24L01P_STATE_GET_RX_ADDR5    11
 #define NRF24L01P_STATE_GET_TX_ADDR     12
 #define NRF24L01P_STATE_GET_RPD         13
+#define NRF24L01P_STATE_GET_AW
 #define NRF24L01P_STATE_POWER_UP        14
 #define NRF24L01P_STATE_POWER_DOWN      15
 #define NRF24L01P_STATE_ENABLE          16
@@ -99,7 +105,6 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
         {
             //
             // Reset function
-            // TODO: do it
             //
             break;
         }
@@ -270,36 +275,6 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
 }
 
 //*****************************************************************************
-//! Put the nRF24L01+ into Receive mode.
-//!
-//! \param psInst is a pointer to the NRF24L01P instance data.
-//!
-//! This function puts the nRF24L01+ device into Receive Mode by setting the
-//! Chip Enable pin high if PRX or low if PTX.
-//!
-//! \return None.
-//
-//*****************************************************************************
-void NRF24L01PSetReceiveMode(tNRF24L01P *psInst)
-{
-}
-
-//*****************************************************************************
-//! Put the nRF24L01+ into Transmit mode
-//!
-//! \param psInst is a pointer to the NRF24L01P instance data.
-//!
-//! This function puts the nRF24L01+ device into Transmit Mode by setting the
-//! Chip Enable pin low if PTX or low if PRX.
-//!
-//! \return None.
-//
-//*****************************************************************************
-void NRF24L01PSetTransmitMode(tNRF24L01P *psInst)
-{
-}
-
-//*****************************************************************************
 //! Initialize the NRF24L01P driver.
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
@@ -325,6 +300,71 @@ uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
                            void *pvCallbackData)
 {
 
+    return (1);
+}
+
+//*****************************************************************************
+//! Put the nRF24L01+ into Receive mode.
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//!
+//! This function puts the nRF24L01+ device into Transmit Mode by setting the
+//! PRIM_RX = 1.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PSetReceiveMode(tNRF24L01P *psInst)
+{
+    psInst->uConfig.ui1PrimaryRx = 1;
+
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_CONFIG;
+
+    //
+    // Pack data
+    //
+    psInst->pui8Data[1] = psInst->uConfig.ui8Config;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Put the nRF24L01+ into Transmit mode
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//!
+//! This function puts the nRF24L01+ device into Transmit Mode by setting the
+//! PRIM_RX = 0.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PSetTransmitMode(tNRF24L01P *psInst)
+{
+    psInst->uConfig.ui1PrimaryRx = 0;
+
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_CONFIG;
+
+    //
+    // Pack data
+    //
+    psInst->pui8Data[1] = psInst->uConfig.ui8Config;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
 }
 
 //*****************************************************************************
@@ -376,7 +416,7 @@ void NRF24L01PSetFrequency(tNRF24L01P *psInst, uint16_t ui16Freq)
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
 //! This function returns the operating frequency of the NRF24L01P driver, and
-//! auto-updates the value if necessary
+//! auto-updates the value.
 //!
 //! \return Returns the operating frequency stored in the NRF24L01P instance
 //! data.
@@ -385,26 +425,21 @@ void NRF24L01PSetFrequency(tNRF24L01P *psInst, uint16_t ui16Freq)
 uint16_t NRF24L01PGetFrequency(tNRF24L01P *psInst)
 {
     //
-    // Update from device
+    // Set state machine state so we know how to parse data from callback
     //
-    if(psInst->ui16Freq == 0)
-    {
-        //
-        // SPI command read register and address
-        //
-        psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_RF_CH;
+    psInst->ui8State = NRF24L01P_STATE_GET_RF_FREQ;
 
-        //
-        // Set state machine state so we know how to parse data from callback
-        //
-        psInst->ui8State = NRF24L01P_STATE_GET_RF_FREQ;
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_RF_CH;
 
-        //
-        // Start SPI transfer
-        //
-        SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                     psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
-    }
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
+
 
     //
     // Return internal structure
@@ -443,7 +478,7 @@ void NRF24L01PSetRFOutputPower(tNRF24L01P *psInst, uint8_t ui8Power)
     //
     // Set RF Setup options, taking from current device since its bit fields
     //
-    if(psInst->ui16AirData == 250)
+    if(psInst->ui16AirDataRate == 250)
     {
         psInst->pui8Data[1] |= NRF24L01P_RF_SETUP_RF_DR_250KBPS;
     }
@@ -492,7 +527,7 @@ void NRF24L01PSetRFOutputPower(tNRF24L01P *psInst, uint8_t ui8Power)
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //!
 //! This function returns the operating radio frequency output power used when
-//! transmitting, and auto-updates if necessary.
+//! transmitting, and auto-updates.
 //!
 //! \return Returns the operating output power as dBm.
 //
@@ -500,26 +535,20 @@ void NRF24L01PSetRFOutputPower(tNRF24L01P *psInst, uint8_t ui8Power)
 int8_t NRF24L01PGetRFOutputPower(tNRF24L01P *psInst)
 {
     //
-    // Update from device
+    // Set state machine state so we know how to parse data from callback
     //
-    if((psInst->i8Power % 6) != 0)
-    {
-        //
-        // SPI command read register and address
-        //
-        psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_RF_SETUP;
+    psInst->ui8State = NRF24L01P_STATE_GET_RF_SETUP;
 
-        //
-        // Set state machine state so we know how to parse data from callback
-        //
-        psInst->ui8State = NRF24L01P_STATE_GET_RF_SETUP;
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_RF_SETUP;
 
-        //
-        // Start SPI transfer
-        //
-        SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                     psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
-    }
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
 
     //
     // Return internal structure
@@ -603,28 +632,20 @@ void NRF24L01PSetAirDataRate(tNRF24L01P *psInst, uint8_t ui8AirDataRate)
 uint16_t NRF24L01PGetAirDataRate(tNRF24L01P *psInst)
 {
     //
-    // Update from device
+    // Set state machine state so we know how to parse data from callback
     //
-    if(psInst->ui16AirDataRate != 250  &&
-       psInst->ui16AirDataRate != 1000 &&
-       psInst->ui16AirDataRate != 2000)
-    {
-        //
-        // SPI command read register and address
-        //
-        psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_RF_SETUP;
+    psInst->ui8State = NRF24L01P_STATE_GET_RF_SETUP;
 
-        //
-        // Set state machine state so we know how to parse data from callback
-        //
-        psInst->ui8State = NRF24L01P_STATE_GET_RF_SETUP;
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_RF_SETUP;
 
-        //
-        // Start SPI transfer
-        //
-        SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                     psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
-    }
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
 
     //
     // Return internal structure
@@ -664,29 +685,29 @@ void NRF24L01PSetCrcWidth(tNRF24L01P *psInst, uint8_t ui8Width)
         //
         // Disable CRC
         //
-        psInst->sConfig.ui1EnableCRC = 0;
+        psInst->uConfig.ui1EnableCRC = 0;
     }
     else
     {
         //
         // Default to enable CRC
         //
-        psInst->sConfig.ui1EnableCRC = 1;
+        psInst->uConfig.ui1EnableCRC = 1;
 
         if(ui8Width == 1)
         {
-            psInst->sConfig.ui1CRCScheme = 0;
+            psInst->uConfig.ui1CRCScheme = 0;
         }
         else // Greater than 1
         {
-            psInst->sConfig.ui1CRCScheme = 1;
+            psInst->uConfig.ui1CRCScheme = 1;
         }
     }
 
     //
     // Pack data
     //
-    psInst->pui8Data[1] = (uint8_t) psInst->sConfig;
+    psInst->pui8Data[1] = psInst->uConfig.ui8Config;
 
     //
     // Start SPI transfer
@@ -707,13 +728,29 @@ void NRF24L01PSetCrcWidth(tNRF24L01P *psInst, uint8_t ui8Width)
 //*****************************************************************************
 uint8_t NRF24L01PGetCrcWidth(tNRF24L01P *psInst)
 {
-    if(!psInst->sConfig.ui1EnableCRC)
+    //
+    // Set state machine state so we know how to parse data from callback
+    //
+    psInst->ui8State = NRF24L01P_STATE_GET_CONFIG;
+
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_CONFIG;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
+
+    if(!psInst->uConfig.ui1EnableCRC)
     {
         return (0);
     }
     else
     {
-        if(psInst->sConfig.ui1CRCScheme == 0)
+        if(psInst->uConfig.ui1CRCScheme == 0)
         {
             return (1);
         }
@@ -728,15 +765,14 @@ uint8_t NRF24L01PGetCrcWidth(tNRF24L01P *psInst)
 //! Sets the address width for all pipes (RX/TX).
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! \param ui8Width width of the address in bytes (3..5).
+//! \param ui8Width width of the address.
 //!
 //! This function sets the pipe address widths for all pipes. Parameter
 //! \e ui8Width must be an option from the NRF24L01P_SETUP_AW_X_BYTES.
 //!
 //! Note that Pipes 0 & 1 have 3, 4 or 5 byte addresses, while Pipes 2..5 only
 //! use the lowest byte (bits 7..0) of the address provided here, and use 2, 3
-//! or 4 bytes from Pipe 1's address. The width parameter is ignored for
-//! Pipes 2..5.
+//! or 4 bytes from Pipe 1's address.
 //!
 //! \return None.
 //
@@ -794,6 +830,22 @@ void NRF24L01PSetAddrWidth(tNRF24L01P *psInst, uint8_t ui8Width)
 //*****************************************************************************
 uint8_t NFR24L01PGetAddrWidth(tNRF24L01P *psInst)
 {
+    //
+    // Set state.
+    //
+    psInst->ui8State = NRF24L01P_STATE_GET_AW
+
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_SETUP_AW;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
+
     return (psInst->ui8AddrWidth);
 }
 
@@ -828,7 +880,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
 
     uint8_t pui8Address[8], ui8TransferSize, ui64AddrMask;
 
-    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Adress);
+    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
 
     //
     // SPI command write register and address
@@ -852,7 +904,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
             //
             // LSByte written first.
             //
-            psInst->pui8Data[1 + i] = pui8Address[7 - i]
+            psInst->pui8Data[1 + i] = pui8Address[7 - i];
         }
 
         ui8TransferSize = 1 + psInst->ui8AddrWidth;
@@ -925,9 +977,10 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
     psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_TX_ADDR;
 
 
-    uint8_t pui8Address[8], ui64AddrMask;
+    uint8_t pui8Address[8];
+    uint64_t ui64AddrMask;
 
-    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Adress);
+    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
 
     //
     // Use assigned address width
@@ -937,7 +990,7 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
         //
         // LSByte written first.
         //
-        psInst->pui8Data[1 + i] = pui8Address[7 - i]
+        psInst->pui8Data[1 + i] = pui8Address[7 - i];
     }
 
     if(psInst->ui8AddrWidth == 3)
@@ -980,31 +1033,45 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
 //*****************************************************************************
 uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe)
 {
+    //
+    // Set state.
+    //
+    psInst->ui8State = NRF24L01P_STATE_GET_RX_ADDR0 + ui8Pipe;
+
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER |
+                          (NRF24L01P_O_RX_ADDR_P0 + ui8Pipe);
+
+    //
+    // Start SPI transfer, save data after our current data written out
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data + sizeof(uint64_t) + sizeof(uint8_t),
+                 1, NRF24L01PCallback, psInst);
+
     switch(ui8Pipe)
     {
         case 0:
             return (psInst->sPipeAddr.ui64RxAddrP0);
-            break;
         case 1:
             return (psInst->sPipeAddr.ui64RxAddrP1);
-            break;
         case 2:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
-            break;
         case 3:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
-            break;
         case 4:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
-            break;
         case 5:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
-            break;
     }
+
+    return (0);
 }
 
 //*****************************************************************************
@@ -1020,6 +1087,23 @@ uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe)
 //*****************************************************************************
 uint64_t NRF24L01PGetTxAddress(tNRF24L01P *psInst)
 {
+    //
+    // Set state.
+    //
+    psInst->ui8State = NRF24L01P_STATE_GET_TX_ADDR;
+
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_TX_ADDR;;
+
+    //
+    // Start SPI transfer, save data after our current data written out
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data + sizeof(uint64_t) + sizeof(uint8_t),
+                 1, NRF24L01PCallback, psInst);
+
     return (psInst->sPipeAddr.ui64TxAddr);
 }
 
@@ -1046,14 +1130,9 @@ void NRF24L01PSetTransferSize(tNRF24L01P *psInst, uint8_t ui8Size, uint8_t ui8Pi
     psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_RX_PW_P0 + ui8Pipe;
 
     //
-    // Default, clear old values
-    //
-    psInst->pui8Data[1] = 0x00;
-
-    //
     // Pack data
     //
-    psInst->pui8Data[1] = (ui8Size & NRF24L01P_RX_PW_M) << NRF24L01P_RX_PW_S;
+    psInst->pui8Data[1] = (ui8Size << NRF24L01P_RX_PW_S) & NRF24L01P_RX_PW_M;
 
     //
     // Save size
@@ -1081,6 +1160,23 @@ void NRF24L01PSetTransferSize(tNRF24L01P *psInst, uint8_t ui8Size, uint8_t ui8Pi
 //*****************************************************************************
 uint8_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe)
 {
+    //
+    // Set state.
+    //
+    psInst->ui8State = NRF24L01P_STATE_GET_TRANSSIZE;
+
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_RX_PW_P0 + ui8Pipe;
+
+    //
+    // Start SPI transfer, save data after our current data written out
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data + sizeof(uint16_t),
+                 2, NRF24L01PCallback, psInst);
+
     return (psInst->pui8RxSPLSize[ui8Pipe]);
 }
 
@@ -1133,7 +1229,7 @@ bool NRF24L01PGetRPD(tNRF24L01P *psInst)
 //*****************************************************************************
 void NRF24L01PPowerUp(tNRF24L01P *psInst)
 {
-    psInst->sConfig.ui1PowerUp = 1;
+    psInst->uConfig.ui1PowerUp = 1;
 
     //
     // SPI command write register and address
@@ -1143,7 +1239,7 @@ void NRF24L01PPowerUp(tNRF24L01P *psInst)
     //
     // Pack data
     //
-    psInst->pui8Data[1] = (uint8_t) psInst->sConfig;
+    psInst->pui8Data[1] = psInst->uConfig.ui8Config;
 
     //
     // Start SPI transfer
@@ -1168,7 +1264,7 @@ void NRF24L01PPowerUp(tNRF24L01P *psInst)
 //*****************************************************************************
 void NRF24L01PPowerDown(tNRF24L01P *psInst)
 {
-    psInst->sConfig.ui1PowerUp = 0;
+    psInst->uConfig.ui1PowerUp = 0;
 
     //
     // SPI command write register and address
@@ -1178,7 +1274,7 @@ void NRF24L01PPowerDown(tNRF24L01P *psInst)
     //
     // Pack data
     //
-    psInst->pui8Data[1] = (uint8_t) psInst->sConfig;
+    psInst->pui8Data[1] = psInst->uConfig.ui8Config;
 
     //
     // Start SPI transfer
@@ -1285,9 +1381,9 @@ void NRF24L01PDisableAllRxPipes(tNRF24L01P *psInst)
     //
     // Disable
     //
-    psInst->sEnabledRxAddr = (tNRF24L01P_Pipes)0x00;
+    psInst->uEnabledRxAddr.ui8Pipes = 0x00;
 
-    psInst->pui8Data[1] = (uint8_t)psInst->sEnabledRxAddr;
+    psInst->pui8Data[1] = psInst->uEnabledRxAddr.ui8Pipes;
 
     //
     // Start SPI transfer
@@ -1316,9 +1412,9 @@ void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst)
     //
     // Disable
     //
-    psInst->sEnabledAA = (tNRF24L01P_Pipes)0x00;
+    psInst->uEnabledAA.ui8Pipes = 0x00;
 
-    psInst->pui8Data[1] = (uint8_t)psInst->sEnabledAA;
+    psInst->pui8Data[1] = psInst->uEnabledAA.ui8Pipes;
 
     //
     // Start SPI transfer
@@ -1348,9 +1444,9 @@ void NRF24L01PEnableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe)
     //
     // Enable
     //
-    psInst->sEnabledAA = (tNRF24L01P_Pipes)0xFF;
+    psInst->uEnabledAA.ui8Pipes = 0xFF;
 
-    psInst->pui8Data[1] = (uint8_t)psInst->sEnabledAA;
+    psInst->pui8Data[1] = psInst->uEnabledAA.ui8Pipes;
 
     //
     // Start SPI transfer
@@ -1372,7 +1468,7 @@ void NRF24L01PEnableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe)
 //! \return None.
 //
 //*****************************************************************************
-void NRF24L01PSetARC(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
+void NRF24L01PSetARC(tNRF24L01P *psInst, uint8_t ui8Count)
 {
     //
     // SPI command write register and address
@@ -1382,7 +1478,7 @@ void NRF24L01PSetARC(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
     //
     // Save
     //
-    psInst->ui8ARC;
+    psInst->ui8ARC = ui8Count;
 
     //
     // Default, clear old values
@@ -1413,13 +1509,29 @@ void NRF24L01PSetARC(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
 //! \return None.
 //
 //*****************************************************************************
-uint8_t NRF24L01PGetARC(tNRF24L01P *psInst, uint8_t ui8Count)
+uint8_t NRF24L01PGetARC(tNRF24L01P *psInst)
 {
-    return (psInst->ui8ARC)
+    //
+    // Set state
+    //
+    psInst->ui8State = NRF24L01P_STATE_GET_ARC;
+
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_SETUP_RETR;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
+
+    return (psInst->ui8ARC);
 }
 
 //*****************************************************************************
-//! Set Auto Retransmit Count function
+//! Set Auto Retransmit Delay function
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //! \param ui16Delay the delay between retransmits, in uS (250uS..4000uS).
@@ -1429,7 +1541,7 @@ uint8_t NRF24L01PGetARC(tNRF24L01P *psInst, uint8_t ui8Count)
 //! \return None.
 //
 //*****************************************************************************
-void NRF24L01PSetARD(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
+void NRF24L01PSetARD(tNRF24L01P *psInst, uint16_t ui16Delay)
 {
     //
     // SPI command write register and address
@@ -1439,9 +1551,9 @@ void NRF24L01PSetARD(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
     //
     // Save
     //
-    psInst->ui8ARD = (NRF24L01P_SETUP_RETR_ARD_DELAY(ui16Delay) >>
-                      NRF24L01P_SETUP_RETR_ARD_S) &
-                      NRF24L01P_SETUP_RETR_ARD_M;
+    psInst->ui8ARD = ((NRF24L01P_SETUP_RETR_ARD_DELAY(ui16Delay) >>
+                       NRF24L01P_SETUP_RETR_ARD_S) &
+                       NRF24L01P_SETUP_RETR_ARD_M;
 
     //
     // Default, clear old values
@@ -1461,7 +1573,7 @@ void NRF24L01PSetARD(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
 }
 
 //*****************************************************************************
-//! Set Auto Retransmit Count function
+//! Set Auto Retransmit Delay function
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
 //! \param ui16Delay the delay between retransmits, in uS (250uS..4000uS).
@@ -1473,7 +1585,23 @@ void NRF24L01PSetARD(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
 //! \return None.
 //
 //*****************************************************************************
-void NRF24L01PGetARD(tNRF24L01P *psInst, uint16_t ui16Delay, uint8_t ui8Count)
+uint16_t NRF24L01PGetARD(tNRF24L01P *psInst)
 {
-    return ((psInst->ui8ARD +1) * 250)
+    //
+    // Set state
+    //
+    psInst->ui8State = NRF24L01P_STATE_GET_ARD;
+
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_SETUP_RETR;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
+
+    return ((psInst->ui8ARD +1) * 250);
 }
