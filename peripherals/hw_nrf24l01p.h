@@ -430,4 +430,16 @@
 #define NRF24L01P_NOP           0xFF    // No Operation. Might be used to read
                                         // the STATUS register
 
+//*****************************************************************************
+//
+// The following are miscellaneous defines
+//
+//*****************************************************************************
+#define NRF24L01P_PIPE_0        0
+#define NRF24L01P_PIPE_1        1
+#define NRF24L01P_PIPE_2        2
+#define NRF24L01P_PIPE_3        3
+#define NRF24L01P_PIPE_4        4
+#define NRF24L01P_PIPE_5        5
+
 #endif /* __PERIPHERALS_HW_NRF24L01P_H__ */

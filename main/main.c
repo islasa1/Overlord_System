@@ -52,7 +52,7 @@
 // Just in case we missed it.
 #ifndef NULL
 #define NULL 0
-#endif;
+#endif
 
 #include "../peripherals/bq27441.h"
 #include "../peripherals/gpio.h"

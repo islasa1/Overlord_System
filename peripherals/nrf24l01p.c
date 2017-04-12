@@ -16,24 +16,28 @@
 #define NRF24L01P_STATE_RMW             4
 #define NRF24L01P_STATE_INIT_RESET      5
 #define NRF24L01P_STATE_INIT_USE        6
-#define NRF24L01P_STATE_GET_RF_FREQ     7
-#define NRF24L01P_STATE_GET_RF_SETUP    8
-#define NRF24L01P_STATE_GET_ADR         9
+#define NRF24L01P_STATE_GET_ARC         7
+#define NRF24L01P_STATE_GET_ARD         8
+#define NRF24L01P_STATE_GET_AW          9
 #define NRF24L01P_STATE_GET_CONFIG      10
-#define NRF24L01P_STATE_GET_RX_ADDR0    11
-#define NRF24L01P_STATE_GET_RX_ADDR1    11
-#define NRF24L01P_STATE_GET_RX_ADDR2    11
-#define NRF24L01P_STATE_GET_RX_ADDR3    11
-#define NRF24L01P_STATE_GET_RX_ADDR4    11
-#define NRF24L01P_STATE_GET_RX_ADDR5    11
-#define NRF24L01P_STATE_GET_TX_ADDR     12
-#define NRF24L01P_STATE_GET_RPD         13
-#define NRF24L01P_STATE_GET_AW
-#define NRF24L01P_STATE_POWER_UP        14
-#define NRF24L01P_STATE_POWER_DOWN      15
-#define NRF24L01P_STATE_ENABLE          16
-#define NRF24L01P_STATE_DISABLE         17
-#define NRF24L01P_STATE_PIPE_READ       18
+#define NRF24L01P_STATE_GET_CRC_WIDTH   11
+#define NRF24L01P_STATE_GET_RF_FREQ     12
+#define NRF24L01P_STATE_GET_RF_PWR      13
+#define NRF24L01P_STATE_GET_RF_SETUP    14
+#define NRF24L01P_STATE_GET_RPD         15
+#define NRF24L01P_STATE_GET_RX_ADDR0    16
+#define NRF24L01P_STATE_GET_RX_ADDR1    17
+#define NRF24L01P_STATE_GET_RX_ADDR2    18
+#define NRF24L01P_STATE_GET_RX_ADDR3    19
+#define NRF24L01P_STATE_GET_RX_ADDR4    20
+#define NRF24L01P_STATE_GET_RX_ADDR5    21
+#define NRF24L01P_STATE_GET_TX_ADDR     22
+#define NRF24L01P_STATE_GET_TRANS_SIZE  23
+#define NRF24L01P_STATE_POWER_UP        24
+#define NRF24L01P_STATE_POWER_DOWN      25
+#define NRF24L01P_STATE_ENABLE          26
+#define NRF24L01P_STATE_DISABLE         27
+#define NRF24L01P_STATE_PIPE_READ       28
 
 
 #define NRF24L01P_MODE_PWR_DOWN     1
@@ -48,12 +52,209 @@
 
 //*****************************************************************************
 //
+// Internal Use
+//
+//*****************************************************************************
+void StateGetSetupRetr(tNRF24L01P *psInst)
+{
+    psInst->ui8ARD = ((psInst->pui8Data[0] & NRF24L01P_SETUP_RETR_ARD_M) >>
+                      NRF24L01P_SETUP_RETR_ARD_S);
+    psInst->ui8ARC = ((psInst->pui8Data[0] & NRF24L01P_SETUP_RETR_ARC_M) >>
+                      NRF24L01P_SETUP_RETR_ARC_S);
+}
+
+void StateGetAW(tNRF24L01P *psInst)
+{
+    if(psInst->pui8Data[0] == NRF24L01P_SETUP_AW_3_BYTES)
+    {
+        psInst->ui8AddrWidth = 3;
+    }
+    else if(psInst->pui8Data[0] == NRF24L01P_SETUP_AW_4_BYTES)
+    {
+        psInst->ui8AddrWidth = 4;
+    }
+    else if(psInst->pui8Data[0] == NRF24L01P_SETUP_AW_5_BYTES)
+    {
+        psInst->ui8AddrWidth = 5;
+    }
+    else
+    {
+        psInst->ui8AddrWidth = 0;
+    }
+}
+
+void StateGetConfig(tNRF24L01P *psInst)
+{
+    psInst->uConfig.ui8Config = psInst->pui8Data[0];
+}
+
+void StateGetRFFreq(tNRF24L01P *psInst)
+{
+    psInst->ui16Freq = ((psInst->pui8Data[0] & NRF24L01P_RF_CH_FREQ_M) >>
+                        NRF24L01P_RF_CH_FREQ_S) + NRF24L01P_RF_CH_FREQ_BASE;
+}
+
+void StateGetRFSetup(tNRF24L01P *psInst)
+{
+    uint8_t ui8DataRate = psInst->pui8Data[0] & (NRF24L01P_RF_SETUP_RF_DR_LOW |
+                          NRF24L01P_RF_SETUP_RF_DR_HIGH);
+    uint8_t ui8Power = psInst->pui8Data[0] & NRF24L01P_RF_SETUP_RF_PWR_M;
+
+    if(ui8DataRate == NRF24L01P_RF_SETUP_RF_DR_250KBPS)
+    {
+        psInst->ui16AirDataRate = 250;
+    }
+    else if(ui8DataRate == NRF24L01P_RF_SETUP_RF_DR_1MBPS)
+    {
+        psInst->ui16AirDataRate = 1000;
+    }
+    else if(ui8DataRate == NRF24L01P_RF_SETUP_RF_DR_2MBPS)
+    {
+        psInst->ui16AirDataRate = 2000;
+    }
+    else
+    {
+        psInst->ui16AirDataRate = 0;
+    }
+
+    if(ui8Power == NRF24L01P_RF_SETUP_RF_PWR_N18DBM)
+    {
+        psInst->i8Power = -18;
+    }
+    else if(ui8Power == NRF24L01P_RF_SETUP_RF_PWR_N12DBM)
+    {
+        psInst->i8Power = -12;
+    }
+    else if(ui8Power == NRF24L01P_RF_SETUP_RF_PWR_N6DBM)
+    {
+        psInst->i8Power = -6;
+    }
+    else if(ui8Power == NRF24L01P_RF_SETUP_RF_PWR_0DBM)
+    {
+        psInst->i8Power = 0;
+    }
+    else
+    {
+        psInst->i8Power = -1;
+    }
+}
+
+void StateGetRxAddr(tNRF24L01P *psInst, uint8_t ui8Pipe)
+{
+    switch(ui8Pipe)
+    {
+        case NRF24L01P_PIPE_0:
+            psInst->sPipeAddr.ui64RxAddrP0 = *((uint64_t *)psInst->pui8Data);
+            break;
+        case NRF24L01P_PIPE_1:
+            psInst->sPipeAddr.ui64RxAddrP1 = *((uint64_t *)psInst->pui8Data);
+            break;
+        case NRF24L01P_PIPE_2:
+            psInst->sPipeAddr.ui8RxAddrP2 = psInst->pui8Data[0];
+            break;
+        case NRF24L01P_PIPE_3:
+            psInst->sPipeAddr.ui8RxAddrP3 = psInst->pui8Data[0];
+            break;
+        case NRF24L01P_PIPE_4:
+            psInst->sPipeAddr.ui8RxAddrP4 = psInst->pui8Data[0];
+            break;
+        case NRF24L01P_PIPE_5:
+            psInst->sPipeAddr.ui8RxAddrP5 = psInst->pui8Data[0];
+            break;
+    }
+}
+
+void StateGetTxAddr(tNRF24L01P *psInst)
+{
+    psInst->sPipeAddr.ui64TxAddr = *((uint64_t *)psInst->pui8Data);
+}
+
+void StateGetTransSize(tNRF24L01P *psInst)
+{
+    uint8_t ui8TransSize, ui8Pipe;
+    ui8Pipe = psInst->pui8Data[0] - NRF24L01P_O_RX_PW_P0;
+    ui8TransSize = psInst->pui8Data[1];
+
+    psInst->pui8RxSPLSize[ui8Pipe] = ui8TransSize;
+}
+
+void StateInitReset(psInst)
+{
+    //
+    // Set up nRF24L01+ device for normal default operation
+    //
+
+    //
+    // Set CRC Configuration
+    //
+    NRF24L01PSetCrcWidth(psInst, 1);
+
+    //
+    // Default to Primary Transceiver
+    //
+    NRF24L01PSetTransmitMode(psInst);
+
+    //
+    // Set Automatic Retransmit Count
+    //
+    NRF24L01PSetARC(psInst, 3);
+
+    //
+    // Set Automatic Retransmit Delay, refer to nRF24L01+ Spec Rev. 1.0 Pg 43
+    // Table 18
+    //
+    NRF24L01PSetARD(psInst, 1500);
+
+    //
+    // Set Address Width
+    //
+    NRF24L01PSetAddrWidth(psInst, NRF24L01P_SETUP_AW_5_BYTES);
+
+    //
+    // Set Operational Radio Frequency
+    //
+    NRF24L01PSetFrequency(psInst, NRF24L01P_RF_CH_FREQ_BASE);
+
+    //
+    // Set Air Data Rate
+    //
+    NRF24L01PSetAirDataRate(psInst, NRF24L01P_RF_SETUP_RF_DR_250KBPS);
+
+    //
+    // Set Payload Widths for Static Payload Size
+    //
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_0);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_1);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_2);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_3);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_4);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_5);
+
+    //
+    // Enable Enhanced Shockburst™ Auto Acknowledge
+    //
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_0);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_1);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_2);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_3);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_4);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_5);
+
+
+    //
+    // Power up
+    //
+    NRF24L01PSet(psInst);
+}
+
+//*****************************************************************************
+//
 //! Callback function for SPI transactions with the nRF24L01+.
 //!
 //! \param pvCallbackData is a pointer to the data used by the callback
 //! function. Should point to an nRF24L01+ instance.
 //! \param ui8Status is an 8 bit integer that represents the status of the
-//! I2C transaction.
+//! SPI transaction.
 //!
 //! This function is a state machine that is used to determine the response
 //! at the end of an SPI transaction. The state of the nRF24L01+ instance given
@@ -83,7 +284,9 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
         // All the states that trivially transition to IDLE, and all unknown
         // states.
         //
-        case NRF24L01P_STATE_READ:
+        case NRF24L01P_STATE_GET_RPD:
+        case NRF24L01P_STATE_READ:  // Not used
+        case NRF24L01P_STATE_WRITE: // Not used
         case NRF24L01P_STATE_LAST:
         default:
         {
@@ -101,19 +304,31 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
         //
         // Device Reset was issued
         //
+        case NRF24L01P_STATE_INIT_USE:
         case NRF24L01P_STATE_INIT_RESET:
         {
             //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
+            //
             // Reset function
             //
+            StateInitReset(psInst);
             break;
         }
 
         //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
-        //
-        case NRF24L01P_STATE_WRITE:
+        case NRF24L01P_STATE_GET_ARC:
+        case NRF24L01P_STATE_GET_ARD:
         {
+            StateGetSetupRetr(psInst);
+            //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
@@ -121,140 +336,116 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
         }
 
         //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
-        //
-        case NRF24L01P_STATE_RMW:
+        case NRF24L01P_STATE_GET_AW:
         {
+            StateGetAW(psInst);
+            //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
             break;
         }
+
         //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
-        //
-        case NRF24L01P_STATE_INIT_USE:
+        case NRF24L01P_STATE_GET_CONFIG:
         {
+            StateGetConfig(psInst);
+            //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
             break;
         }
+
         //
-        //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
         case NRF24L01P_STATE_GET_RF_FREQ:
         {
+            StateGetRFFreq(psInst);
+            //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
             break;
         }
+
         //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
-        //
-        case NRF24L01P_STATE_GET_RF_PWR:
+        case NRF24L01P_STATE_GET_RF_SETUP:
         {
+            StateGetRFSetup(psInst);
+            //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
             break;
         }
+
         //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
-        //
-        case NRF24L01P_STATE_GET_ADR:
+        case NRF24L01P_STATE_GET_RX_ADDR5:
+        case NRF24L01P_STATE_GET_RX_ADDR4:
+        case NRF24L01P_STATE_GET_RX_ADDR3:
+        case NRF24L01P_STATE_GET_RX_ADDR2:
+        case NRF24L01P_STATE_GET_RX_ADDR1:
+        case NRF24L01P_STATE_GET_RX_ADDR0:
         {
+            StateGetRxAddr(psInst, psInst->ui8State - NRF24L01P_STATE_GET_RX_ADDR0);
+            //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
             break;
         }
+
         //
-        //
-        //
-        case NRF24L01P_STATE_GET_CRC_WIDTH:
-        {
-            //
-            // Done.
-            //
-            break;
-        }
-        //
-        //
-        //
-        case NRF24L01P_STATE_GET_RX_ADDR:
-        {
-            //
-            // Done.
-            //
-            break;
-        }
-        //
-        //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
         case NRF24L01P_STATE_GET_TX_ADDR:
         {
+            StateGetTxAddr(psInst);
+            //
+            // The state machine is now idle
+            //
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
             break;
         }
+
         //
-        //
+        // Pass NRF24L01P Instance to appropriate function to parse return data
         //
         case NRF24L01P_STATE_GET_TRANS_SIZE:
         {
+            StateGetTransSize(psInst);
             //
-            // Done.
+            // The state machine is now idle
             //
-            break;
-        }
-        //
-        //
-        //
-        case NRF24L01P_STATE_POWER_UP:
-        {
-            //
-            // Done.
-            //
-            break;
-        }
-        //
-        //
-        //
-        case NRF24L01P_STATE_POWER_DOWN:
-        {
-            //
-            // Done.
-            //
-            break;
-        }
-        //
-        //
-        //
-        case NRF24L01P_STATE_ENABLE:
-        {
-            //
-            // Done.
-            //
-            break;
-        }
-        //
-        //
-        //
-        case NRF24L01P_STATE_DISABLE:
-        {
-            //
-            // Done.
-            //
-            break;
-        }
-        //
-        //
-        //
-        case NRF24L01P_STATE_PIPE_READ:
-        {
+            psInst->ui8State = NRF24L01P_STATE_IDLE;
             //
             // Done.
             //
@@ -299,6 +490,23 @@ uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
                            tSPICallback *pfnCallback,
                            void *pvCallbackData)
 {
+    psInst->psSPIInst = psSPIInst;
+    psInst->ui32CSBase = ui32CSPort;
+    psInst->ui8CSPin = ui8CSPin;
+    psInst->ui32CEBase = ui32CEPort;
+    psInst->ui8CEPin = ui8CEPin;
+    psInst->pfnCallback = pfnCallback;
+    psInst->pvCallbackData = pvCallbackData;
+
+    //
+    // Set to Init Reset
+    //
+    psInst->ui8State = NRF24L01P_STATE_INIT_RESET;
+
+    //
+    // Call device-supplied callback to initialize
+    //
+    NRF24L01PCallback(psInst, 0);
 
     return (1);
 }
@@ -833,7 +1041,7 @@ uint8_t NFR24L01PGetAddrWidth(tNRF24L01P *psInst)
     //
     // Set state.
     //
-    psInst->ui8State = NRF24L01P_STATE_GET_AW
+    psInst->ui8State = NRF24L01P_STATE_GET_AW;
 
     //
     // SPI command read register and address
@@ -873,7 +1081,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
     //
     // Make sure Pipe Number is within bounds.
     //
-    if(ui8Pipe > 5)
+    if(ui8Pipe > NRF24L01P_PIPE_5)
     {
         return;
     }
@@ -888,7 +1096,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
     psInst->pui8Data[0] = NRF24L01P_W_REGISTER |
             (NRF24L01P_O_RX_ADDR_P0 + ui8Pipe);
 
-    if(ui8Pipe > 1)
+    if(ui8Pipe > NRF24L01P_PIPE_1)
     {
         //
         // Only take LSByte
@@ -899,7 +1107,8 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
     }
     else
     {
-        for(int i = 0; i < psInst->ui8AddrWidth; i++)
+        int i;
+        for(i = 0; i < psInst->ui8AddrWidth; i++)
         {
             //
             // LSByte written first.
@@ -928,22 +1137,22 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
     //
     switch(ui8Pipe)
     {
-        case 0:
+        case NRF24L01P_PIPE_0:
             psInst->sPipeAddr.ui64RxAddrP0 = ui64Address & ui64AddrMask;
             break;
-        case 1:
+        case NRF24L01P_PIPE_1:
             psInst->sPipeAddr.ui64RxAddrP1 = ui64Address & ui64AddrMask;
             break;
-        case 2:
+        case NRF24L01P_PIPE_2:
             psInst->sPipeAddr.ui8RxAddrP2 = (uint8_t) (ui64Address & ui64AddrMask);
             break;
-        case 3:
+        case NRF24L01P_PIPE_3:
             psInst->sPipeAddr.ui8RxAddrP3 = (uint8_t) (ui64Address & ui64AddrMask);
             break;
-        case 4:
+        case NRF24L01P_PIPE_4:
             psInst->sPipeAddr.ui8RxAddrP4 = (uint8_t) (ui64Address & ui64AddrMask);
             break;
-        case 5:
+        case NRF24L01P_PIPE_5:
             psInst->sPipeAddr.ui8RxAddrP5 = (uint8_t) (ui64Address & ui64AddrMask);
             break;
     }
@@ -985,7 +1194,8 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
     //
     // Use assigned address width
     //
-    for(int i = 0; i < psInst->ui8AddrWidth; i++)
+    int i;
+    for(i = 0; i < psInst->ui8AddrWidth; i++)
     {
         //
         // LSByte written first.
@@ -1045,28 +1255,27 @@ uint64_t NRF24L01PGetRxAddress(tNRF24L01P *psInst, uint8_t ui8Pipe)
                           (NRF24L01P_O_RX_ADDR_P0 + ui8Pipe);
 
     //
-    // Start SPI transfer, save data after our current data written out
+    // Start SPI transfer
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, psInst->pui8Data + sizeof(uint64_t) + sizeof(uint8_t),
-                 1, NRF24L01PCallback, psInst);
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
 
     switch(ui8Pipe)
     {
-        case 0:
+        case NRF24L01P_PIPE_0:
             return (psInst->sPipeAddr.ui64RxAddrP0);
-        case 1:
+        case NRF24L01P_PIPE_1:
             return (psInst->sPipeAddr.ui64RxAddrP1);
-        case 2:
+        case NRF24L01P_PIPE_2:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
-        case 3:
+        case NRF24L01P_PIPE_3:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
-        case 4:
+        case NRF24L01P_PIPE_4:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
-        case 5:
+        case NRF24L01P_PIPE_5:
             return ((uint64_t) psInst->sPipeAddr.ui8RxAddrP2 |
                     (psInst->sPipeAddr.ui64RxAddrP1 & NRF24L01P_MSBYTES_ADDR_M));
     }
@@ -1095,14 +1304,13 @@ uint64_t NRF24L01PGetTxAddress(tNRF24L01P *psInst)
     //
     // SPI command read register and address
     //
-    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_TX_ADDR;;
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_TX_ADDR;
 
     //
     // Start SPI transfer, save data after our current data written out
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, psInst->pui8Data + sizeof(uint64_t) + sizeof(uint8_t),
-                 1, NRF24L01PCallback, psInst);
+                 psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
 
     return (psInst->sPipeAddr.ui64TxAddr);
 }
@@ -1163,7 +1371,7 @@ uint8_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe)
     //
     // Set state.
     //
-    psInst->ui8State = NRF24L01P_STATE_GET_TRANSSIZE;
+    psInst->ui8State = NRF24L01P_STATE_GET_TRANS_SIZE;
 
     //
     // SPI command read register and address
@@ -1174,8 +1382,8 @@ uint8_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe)
     // Start SPI transfer, save data after our current data written out
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, psInst->pui8Data + sizeof(uint16_t),
-                 2, NRF24L01PCallback, psInst);
+                 psInst->pui8Data, psInst->pui8Data + 1,
+                 1, NRF24L01PCallback, psInst);
 
     return (psInst->pui8RxSPLSize[ui8Pipe]);
 }
@@ -1459,7 +1667,6 @@ void NRF24L01PEnableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe)
 //! Set Auto Retransmit Count function
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! \param ui16Delay the delay between retransmits, in uS (250uS..4000uS).
 //! \param ui8Count number of retransmits before generating an error (1..15).
 //!
 //! This function sets the delay between Auto Retransmits and the number of
@@ -1603,5 +1810,5 @@ uint16_t NRF24L01PGetARD(tNRF24L01P *psInst)
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
                  psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
 
-    return ((psInst->ui8ARD +1) * 250);
+    return ((psInst->ui8ARD + 1) * 250);
 }

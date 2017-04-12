@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "driverlib/gpio.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 
@@ -299,7 +300,7 @@ typedef struct
     //
     //! RX Payload size when using static payload (SPL) size
     //
-    uint8_t pui8RxSPLSize[8];
+    uint8_t pui8RxSPLSize[6];
 
     //
     //! Auto retransmit count
@@ -360,7 +361,6 @@ extern void NRF24L01PSetTransferSize(tNRF24L01P *psInst, uint8_t ui8Size,
                                      uint8_t ui8Pipe );
 extern uint8_t NRF24L01PGetTransferSize(tNRF24L01P *psInst, uint8_t ui8Pipe);
 extern bool NRF24L01PGetRPD(tNRF24L01P *psInst);
-
 extern void NRF24L01PPowerUp(tNRF24L01P *psInst);
 extern void NRF24L01PPowerDown(tNRF24L01P *psInst);
 extern void NRF24L01PEnableMode(tNRF24L01P *psInst);
@@ -373,8 +373,10 @@ extern void NRF24L01PDisableAllRxPipes(tNRF24L01P *psInst);
 extern void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst);
 extern void NRF24L01PEnableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe);
 extern void NRF24L01PDisableAutoRetransmit(tNRF24L01P *psInst);
-extern void NRF24L01PEnableAutoRetransmit(tNRF24L01P *psInst, uint16_t ui16Delay,
-                                          uint8_t ui8Count);
+extern void NRF24L01PSetARC(tNRF24L01P *psInst, uint8_t ui8Count);
+extern uint8_t NRF24L01PGetARC(tNRF24L01P *psInst);
+extern void NRF24L01PSetARD(tNRF24L01P *psInst, uint16_t ui16Delay);
+extern uint16_t NRF24L01PGetARD(tNRF24L01P *psInst);
 
 //****************************************************************************
 //
