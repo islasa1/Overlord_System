@@ -9,6 +9,55 @@
 
 #include "nrf24l01p.h"
 
+//*****************************************************************************
+//
+// Defines the SSI GPIO peripherals that are used for this radio.
+//
+//*****************************************************************************
+#define RADIO_SSI_PERIPH            SYSCTL_PERIPH_SSI3
+#define RADIO_SSI_GPIO_PERIPH       SYSCTL_PERIPH_GPIOD
+#define RADIO_CS_GPIO_PERIPH        SYSCTL_PERIPH_GPIOD
+#define RADIO_CE_GPIO_PERIPH        SYSCTL_PERIPH_GPIOB
+#define RADiO_IRQ_GPIO_PERIPH       SYSCTL_PERIPH_GPIOF
+
+//*****************************************************************************
+//
+// Defines the GPIO Pin configuration macros for the pins that are used for
+// this radio.
+//
+//*****************************************************************************
+#define RADIO_PINCFG_SSICLK         GPIO_PD0_SSI3CLK
+#define RADIO_PINCFG_SSITX          GPIO_PD3_SSI3TX
+#define RADIO_PINCFG_SSIRX          GPIO_PD2_SSI3RX
+
+//*****************************************************************************
+//
+// Defines the port and pins for the SSI peripheral.
+//
+//*****************************************************************************
+#define RADIO_SSI_PORT              GPIO_PORTD_BASE
+#define RADIO_SSI_PINS              (GPIO_PIN_0 | GPIO_PIN_2 | GPIO_PIN_3)
+
+//*****************************************************************************
+//
+// Defines the port and pins for the Chip Select, Chip Enable, and IRQ signals.
+//
+//*****************************************************************************
+#define RADIO_CS_PORT               GPIO_PORTD_BASE
+#define RADIO_CS_PIN                GPIO_PIN_1
+#define RADIO_CE_PORT               GPIO_PORTF_BASE
+#define RADIO_CE_PIN                GPIO_PIN_4
+#define RADIO_IRQ_PORT              GPIO_PORTB_BASE
+#define RADIO_IRQ_PIN               GPIO_PIN_4
+
+//*****************************************************************************
+//
+// Defines the SSI peripheral base and data speed.
+//
+//*****************************************************************************
+#define RADIO_SSI_BASE              SSI3_BASE
+#define RADIO_SSI_CLOCK             10000000
+
 #define NRF24L01P_STATE_IDLE            0
 #define NRF24L01P_STATE_LAST            1
 #define NRF24L01P_STATE_READ            2
@@ -55,6 +104,37 @@
 // Internal Use
 //
 //*****************************************************************************
+void NRF24L01PHWInit(void)
+{
+    //
+    // Enable the peripherals used by this driver
+    //
+    MAP_SysCtlPeripheralEnable(RADIO_SSI_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADIO_SSI_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADIO_CS_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADIO_CE_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADiO_IRQ_GPIO_PERIPH);
+
+    //
+    // Select the SSI function for the appropriate pins
+    //
+    MAP_GPIOPinConfigure(RADIO_PINCFG_SSICLK);
+    MAP_GPIOPinConfigure(RADIO_PINCFG_SSITX);
+    MAP_GPIOPinConfigure(RADIO_PINCFG_SSIRX);
+
+    //
+    // Configure the pins for the SSI function
+    //
+    MAP_GPIOPinTypeSSI(RADIO_SSI_PORT, RADIO_SSI_PINS);
+
+    //
+    // Configure other control lines as GPIO output or input (IRQ)
+    //
+    MAP_GPIOPinTypeGPIOOutput(RADIO_CS_PORT, RADIO_CS_PIN);
+    MAP_GPIOPinTypeGPIOOutput(RADIO_CE_PORT, RADIO_CE_PIN);
+    MAP_GPIOPinTypeGPIOInput(RADIO_IRQ_PORT, RADIO_IRQ_PIN);
+}
+
 void StateGetSetupRetr(tNRF24L01P *psInst)
 {
     psInst->ui8ARD = ((psInst->pui8Data[0] & NRF24L01P_SETUP_RETR_ARD_M) >>
@@ -497,6 +577,11 @@ uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
     psInst->ui8CEPin = ui8CEPin;
     psInst->pfnCallback = pfnCallback;
     psInst->pvCallbackData = pvCallbackData;
+
+    NRF24L01PHWInit();
+
+    SPIMInit(psInst->psSPIInst, RADIO_SSI_BASE, INT_SSI3,
+             0xFF, 0xFF, MAP_SysCtlClockGet(), RADIO_SSI_CLOCK);
 
     //
     // Set to Init Reset
@@ -1088,7 +1173,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
 
     uint8_t pui8Address[8], ui8TransferSize, ui64AddrMask;
 
-    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
+    pui8Address = &ui64Address;
 
     //
     // SPI command write register and address
@@ -1101,7 +1186,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
         //
         // Only take LSByte
         //
-        psInst->pui8Data[1] = pui8Address[7];
+        psInst->pui8Data[1] = pui8Address[0];
 
         ui8TransferSize = 2;
     }
@@ -1113,7 +1198,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
             //
             // LSByte written first.
             //
-            psInst->pui8Data[1 + i] = pui8Address[7 - i];
+            psInst->pui8Data[1 + i] = pui8Address[i];
         }
 
         ui8TransferSize = 1 + psInst->ui8AddrWidth;
@@ -1189,7 +1274,7 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
     uint8_t pui8Address[8];
     uint64_t ui64AddrMask;
 
-    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
+    pui8Address = &ui64Address;
 
     //
     // Use assigned address width
@@ -1200,7 +1285,7 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
         //
         // LSByte written first.
         //
-        psInst->pui8Data[1 + i] = pui8Address[7 - i];
+        psInst->pui8Data[1 + i] = pui8Address[i];
     }
 
     if(psInst->ui8AddrWidth == 3)

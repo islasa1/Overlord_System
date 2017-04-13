@@ -5,7 +5,6 @@
  *      Author: moncadac
  */
 
-#include "mpu9250_drv.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -28,6 +27,8 @@
 #include "../peripherals/i2c.h"
 #include "../peripherals/hw_mpu9x50.h"
 #include "../peripherals/mpu9x50.h"
+
+#include "mpu9250_drv.h"
 
 //*****************************************************************************
 //
@@ -66,7 +67,7 @@ static tAK8963 *sg_psAK8963Inst;
 
 //*****************************************************************************
 //
-// Global pointer to AK8963 instance. Local to this file.
+// Global pointer to I2C Master instance. Local to this file.
 //
 //*****************************************************************************
 static tI2CMInstance *sg_psI2CMInst;
