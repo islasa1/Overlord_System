@@ -168,7 +168,7 @@ typedef union
         //
         //! Data pipe number for payload available for reading from RX FIFO.
         //
-        unsigned int ui1RxPNo       : 3;
+        unsigned int ui3RxPNo       : 3;
 
         //
         //! TX FIFO full flag.
@@ -179,6 +179,88 @@ typedef union
     uint8_t ui8Status;
 
 } tNRF24L01P_STATUS;
+
+//*****************************************************************************
+//
+//! Bit field used to store FIFO status information of nRF24L01+
+//
+//*****************************************************************************
+typedef union
+{
+    struct
+    {
+        //
+        // Reserved.
+        //
+        unsigned int                : 1;
+
+        //
+        //! Used for a PTX device.
+        //
+        unsigned int ui1TxReuse     : 1;
+
+        //
+        //! TX FIFO full flag. 1 = Full 0 = Available locations
+        //
+        unsigned int ui1TxFull      : 1;
+
+        //
+        //! TX FIFO empty flag. 1 = Empty 0 = Data inside FIFO
+        //
+        unsigned int ui1TxEmpty     : 1;
+
+        //
+        // Reserved.
+        //
+        unsigned int                : 2;
+
+        //
+        //! RX FIFO full flag. 1 = Full 0 = Available locations
+        //
+        unsigned int ui1RxFull      : 1;
+
+        //
+        //! RX empty flag. 1 = Empty 0 = Data inside FIFO
+        //
+        unsigned int ui1RxEmpty     : 1;
+    };
+
+    uint8_t ui8FIFOStatus;
+
+} tNRF24L01P_FIFO_STATUS;
+
+//*****************************************************************************
+//
+//! Bit field used to store feature information of nRF24L01+
+//
+//*****************************************************************************
+typedef union
+{
+    struct
+    {
+        //
+        // Reserved
+        //
+        unsigned int                    : 5;
+
+        //
+        //! Enable Dynamic Payload Length
+        //
+        unsigned int ui1EnableDPL       : 1;
+
+        //
+        //! Enable Payload with ACK
+        //
+        unsigned int ui1EnableACKPd     : 1;
+
+        //
+        //! Enable Dynamic usage of ACK (Enable W_TX_PAYLOAD_NOACK command)
+        //
+        unsigned int ui1EnableDynACK    : 1;
+    };
+
+    uint8_t ui8Features;
+} tNRF24L01P_Feature;
 
 //*****************************************************************************
 //
@@ -278,6 +360,16 @@ typedef struct
     uint8_t ui8AddrWidth;
 
     //
+    //! RX & TX FIFO Status
+    //
+    tNRF24L01P_FIFO_STATUS uFIFOStatus;
+
+    //
+    //! Status of device
+    //
+    tNRF24L01P_STATUS uStatus;
+
+    //
     //! Key configuration options of device.
     //
     tNRF24L01P_CONFIG uConfig;
@@ -293,9 +385,19 @@ typedef struct
     tNRF24L01P_Pipes uEnabledRxAddr;
 
     //
+    //! Enable Dynamic Payloads
+    //
+    tNRF24L01P_Pipes uEnableDynPd;
+
+    //
     //! Stores the RX/TX Addresses
     //
     tNRF24L01P_Addresses sPipeAddr;
+
+    //
+    //! Store features set for the nRF24L01+ device
+    //
+    tNRF24L01P_Feature uFeatures;
 
     //
     //! RX Payload size when using static payload (SPL) size
@@ -336,8 +438,6 @@ typedef struct
 } tNRF24L01P;
 
 extern uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
-                                  uint32_t ui32CSPort, uint8_t ui8CSPin,
-                                  uint32_t ui32CEPort, uint8_t ui8CEPin,
                                   tSPICallback *pfnCallback,
                                   void *pvCallbackData);
 extern void NRF24L01PSetReceiveMode(tNRF24L01P *psInst);
@@ -377,7 +477,15 @@ extern void NRF24L01PSetARC(tNRF24L01P *psInst, uint8_t ui8Count);
 extern uint8_t NRF24L01PGetARC(tNRF24L01P *psInst);
 extern void NRF24L01PSetARD(tNRF24L01P *psInst, uint16_t ui16Delay);
 extern uint16_t NRF24L01PGetARD(tNRF24L01P *psInst);
-
+extern void NRF24L01PEnableDynPd(tNRF24L01P *psInst, uint8_t ui8Pipe);
+extern void NRF24L01PDisableDynPd(tNRF24L01P *psInst, uint8_t ui8Pipe);
+extern void NRF24L01PEnableFeatures(tNRF24L01P *psInst, uint8_t ui8Features);
+extern void NRF24L01PDisableFeatures(tNRF24L01P *psInst);
+extern void NRF24L01PReadStatus(tNRF24L01P *psInst);
+extern void NRF24L01PClearInterrupt(tNRF24L01P *psInst, uint8_t ui8Int);
+extern void NRF24L01PReadFIFOStatus(tNRF24L01P *psInst);
+extern void NRF24L01PWriteAckPayload(tNRF24L01P *psInst, uint8_t ui8Pipe,
+                                     uint8_t *ui8Data, uint8_t ui8Count);
 //****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.

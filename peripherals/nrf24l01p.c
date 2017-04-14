@@ -9,6 +9,55 @@
 
 #include "nrf24l01p.h"
 
+//*****************************************************************************
+//
+// Defines the SSI GPIO peripherals that are used for this radio.
+//
+//*****************************************************************************
+#define RADIO_SSI_PERIPH            SYSCTL_PERIPH_SSI3
+#define RADIO_SSI_GPIO_PERIPH       SYSCTL_PERIPH_GPIOD
+#define RADIO_CS_GPIO_PERIPH        SYSCTL_PERIPH_GPIOD
+#define RADIO_CE_GPIO_PERIPH        SYSCTL_PERIPH_GPIOB
+#define RADiO_IRQ_GPIO_PERIPH       SYSCTL_PERIPH_GPIOF
+
+//*****************************************************************************
+//
+// Defines the GPIO Pin configuration macros for the pins that are used for
+// this radio.
+//
+//*****************************************************************************
+#define RADIO_PINCFG_SSICLK         GPIO_PD0_SSI3CLK
+#define RADIO_PINCFG_SSITX          GPIO_PD3_SSI3TX
+#define RADIO_PINCFG_SSIRX          GPIO_PD2_SSI3RX
+
+//*****************************************************************************
+//
+// Defines the port and pins for the SSI peripheral.
+//
+//*****************************************************************************
+#define RADIO_SSI_PORT              GPIO_PORTD_BASE
+#define RADIO_SSI_PINS              (GPIO_PIN_0 | GPIO_PIN_2 | GPIO_PIN_3)
+
+//*****************************************************************************
+//
+// Defines the port and pins for the Chip Select, Chip Enable, and IRQ signals.
+//
+//*****************************************************************************
+#define RADIO_CS_PORT               GPIO_PORTD_BASE
+#define RADIO_CS_PIN                GPIO_PIN_1
+#define RADIO_CE_PORT               GPIO_PORTF_BASE
+#define RADIO_CE_PIN                GPIO_PIN_4
+#define RADIO_IRQ_PORT              GPIO_PORTB_BASE
+#define RADIO_IRQ_PIN               GPIO_PIN_4
+
+//*****************************************************************************
+//
+// Defines the SSI peripheral base and data speed.
+//
+//*****************************************************************************
+#define RADIO_SSI_BASE              SSI3_BASE
+#define RADIO_SSI_CLOCK             10000000
+
 #define NRF24L01P_STATE_IDLE            0
 #define NRF24L01P_STATE_LAST            1
 #define NRF24L01P_STATE_READ            2
@@ -55,6 +104,45 @@
 // Internal Use
 //
 //*****************************************************************************
+void NRF24L01PHWInit(tNRF24L01P *psInst)
+{
+    //
+    // Enable the peripherals used by this driver
+    //
+    MAP_SysCtlPeripheralEnable(RADIO_SSI_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADIO_SSI_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADIO_CS_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADIO_CE_GPIO_PERIPH);
+    MAP_SysCtlPeripheralEnable(RADiO_IRQ_GPIO_PERIPH);
+
+    //
+    // Select the SSI function for the appropriate pins
+    //
+    MAP_GPIOPinConfigure(RADIO_PINCFG_SSICLK);
+    MAP_GPIOPinConfigure(RADIO_PINCFG_SSITX);
+    MAP_GPIOPinConfigure(RADIO_PINCFG_SSIRX);
+
+    //
+    // Configure the pins for the SSI function
+    //
+    MAP_GPIOPinTypeSSI(RADIO_SSI_PORT, RADIO_SSI_PINS);
+
+    //
+    // Configure other control lines as GPIO output or input (IRQ)
+    //
+    MAP_GPIOPinTypeGPIOOutput(RADIO_CS_PORT, RADIO_CS_PIN);
+    MAP_GPIOPinTypeGPIOOutput(RADIO_CE_PORT, RADIO_CE_PIN);
+    MAP_GPIOPinTypeGPIOInput(RADIO_IRQ_PORT, RADIO_IRQ_PIN);
+
+    //
+    // Save HW Configuration
+    //
+    psInst->ui32CSBase = RADIO_CS_PORT;
+    psInst->ui8CSPin = RADIO_CS_PIN;
+    psInst->ui32CEBase = RADIO_CE_PORT;
+    psInst->ui8CEPin = RADIO_CE_PIN;
+}
+
 void StateGetSetupRetr(tNRF24L01P *psInst)
 {
     psInst->ui8ARD = ((psInst->pui8Data[0] & NRF24L01P_SETUP_RETR_ARD_M) >>
@@ -195,6 +283,40 @@ void StateInitReset(psInst)
     NRF24L01PSetTransmitMode(psInst);
 
     //
+    // Enable features
+    //
+    NRF24L01PEnableFeatures(psInst, NRF24L01P_FEATURE_EN_DPL | NRF24L01P_FEATURE_EN_ACK_PAY);
+
+    //
+    // Set feature settings
+    // Enable Enhanced Shockburst™ Auto Acknowledge
+    //
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_0);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_1);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_2);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_3);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_4);
+    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_5);
+    //
+    // Enable Dynamic Payload per pipe
+    //
+    NRF24L01PEnableDynPd(psInst, NRF24L01P_PIPE_0);
+    NRF24L01PEnableDynPd(psInst, NRF24L01P_PIPE_1);
+    NRF24L01PEnableDynPd(psInst, NRF24L01P_PIPE_2);
+    NRF24L01PEnableDynPd(psInst, NRF24L01P_PIPE_3);
+    NRF24L01PEnableDynPd(psInst, NRF24L01P_PIPE_4);
+    NRF24L01PEnableDynPd(psInst, NRF24L01P_PIPE_5);
+    //
+    // Set Payload Widths for Static Payload Size, not used but in case no
+    // dynamic usage
+    //
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_0);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_1);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_2);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_3);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_4);
+    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_5);
+    //
     // Set Automatic Retransmit Count
     //
     NRF24L01PSetARC(psInst, 3);
@@ -221,25 +343,9 @@ void StateInitReset(psInst)
     NRF24L01PSetAirDataRate(psInst, NRF24L01P_RF_SETUP_RF_DR_250KBPS);
 
     //
-    // Set Payload Widths for Static Payload Size
+    // Set Transmit Power
     //
-    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_0);
-    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_1);
-    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_2);
-    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_3);
-    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_4);
-    NRF24L01PSetTransferSize(psInst, NRF24L01P_RX_FIFO_SIZE, NRF24L01P_PIPE_5);
-
-    //
-    // Enable Enhanced Shockburst™ Auto Acknowledge
-    //
-    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_0);
-    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_1);
-    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_2);
-    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_3);
-    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_4);
-    NRF24L01PEnableAutoAcknowledge(psInst, NRF24L01P_PIPE_5);
-
+    NRF24L01PSetRFOutputPower(psInst, NRF24L01P_RF_SETUP_RF_PWR_N12DBM);
 
     //
     // Power up
@@ -485,18 +591,17 @@ static void NRF24L01PCallback(void *pvCallbackData, uint_fast8_t ui8Status)
 //
 //*****************************************************************************
 uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
-                           uint32_t ui32CSPort, uint8_t ui8CSPin,
-                           uint32_t ui32CEPort, uint8_t ui8CEPin,
                            tSPICallback *pfnCallback,
                            void *pvCallbackData)
 {
     psInst->psSPIInst = psSPIInst;
-    psInst->ui32CSBase = ui32CSPort;
-    psInst->ui8CSPin = ui8CSPin;
-    psInst->ui32CEBase = ui32CEPort;
-    psInst->ui8CEPin = ui8CEPin;
     psInst->pfnCallback = pfnCallback;
     psInst->pvCallbackData = pvCallbackData;
+
+    NRF24L01PHWInit();
+
+    SPIMInit(psInst->psSPIInst, RADIO_SSI_BASE, INT_SSI3,
+             0xFF, 0xFF, MAP_SysCtlClockGet(), RADIO_SSI_CLOCK);
 
     //
     // Set to Init Reset
@@ -1088,7 +1193,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
 
     uint8_t pui8Address[8], ui8TransferSize, ui64AddrMask;
 
-    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
+    pui8Address = &ui64Address;
 
     //
     // SPI command write register and address
@@ -1101,7 +1206,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
         //
         // Only take LSByte
         //
-        psInst->pui8Data[1] = pui8Address[7];
+        psInst->pui8Data[1] = pui8Address[0];
 
         ui8TransferSize = 2;
     }
@@ -1113,7 +1218,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
             //
             // LSByte written first.
             //
-            psInst->pui8Data[1 + i] = pui8Address[7 - i];
+            psInst->pui8Data[1 + i] = pui8Address[i];
         }
 
         ui8TransferSize = 1 + psInst->ui8AddrWidth;
@@ -1133,8 +1238,9 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
     }
 
     //
-    // Save Address
+    // Save Address, and auto enable pipe
     //
+    psInst->uEnabledRxAddr.ui8Pipes |= (0x1 << ui8Pipe);
     switch(ui8Pipe)
     {
         case NRF24L01P_PIPE_0:
@@ -1189,7 +1295,7 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
     uint8_t pui8Address[8];
     uint64_t ui64AddrMask;
 
-    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
+    pui8Address = &ui64Address;
 
     //
     // Use assigned address width
@@ -1200,7 +1306,7 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
         //
         // LSByte written first.
         //
-        psInst->pui8Data[1 + i] = pui8Address[7 - i];
+        psInst->pui8Data[1 + i] = pui8Address[i];
     }
 
     if(psInst->ui8AddrWidth == 3)
@@ -1551,22 +1657,127 @@ void NRF24L01PDisableMode(tNRF24L01P *psInst)
 int32_t NRF24L01PTransmit(tNRF24L01P *psInst, uint8_t *ui8Data,
                           uint8_t ui8Count)
 {
+    int i;
+    //
+    // SPI command write TX payload
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_TX_PAYLOAD;
+
+    //
+    // Pack data to write
+    //
+    for(i = 0; i < ui8Count; i++)
+    {
+        psInst->pui8Data[1 + i] = ui8Data[i];
+    }
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, ui8Count + 1, NRF24L01PCallback, psInst);
+
+    return (ui8Count + 1);
 }
 
 //*****************************************************************************
 //! Receive data
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
-//! \param ui8Pipe the receive pipe to get data from
 //! \param ui8Data pointer to an array of bytes to store the received data
-//! \param ui8Count the number of bytes to receive (1..32)
 //! \return the number of bytes actually received, 0 if none are received,
 //! or -1 for an error
 //
 //*****************************************************************************
-int32_t NRF24L01PReceive(tNRF24L01P *psInst, uint8_t ui8Pipe,
-                         uint8_t *ui8Data, uint8_t ui8Count)
+int16_t NRF24L01PReceive(tNRF24L01P *psInst, uint8_t *ui8Data)
 {
+    uint8_t ui8Count;
+    //
+    // We enter this function if we receive an IRQ that tells us data is ready
+    // in the RX FIFO
+    //
+    // Find pipe responsible, stored in STATUS
+    //
+    NRF24L01PReadStatus(psInst);
+
+    //
+    // Find number of bytes to read
+    //
+    ui8Count = NRF24L01PGetTransferSize(psInst, psInst->uStatus.ui3RxPNo);
+
+    //
+    // Step 1: Read payload
+    //
+    //
+    // SPI command read RX payload
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_RX_PAYLOAD;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, ui8Data, 1, NRF24L01PCallback, psInst);
+
+    //
+    // Step 2: Clear RX_DR IRQ
+    //
+    NRF24L01PClearInterrupt(psInst, NRF24L01P_STATUS_RX_DR);
+
+    //
+    // Step 3: Read FIFO_STATUS
+    //
+    NRF24L01PReadFIFOStatus(psInst);
+
+    //
+    // Step 4: Assess if we have more payloads to read and begin process again
+    //
+    while(!psInst->uFIFOStatus.ui1RxEmpty)
+    {
+        uint8_t ui8TempCount;
+        NRF24L01PReadStatus(psInst);
+        ui8TempCount = NRF24L01PGetTransferSize(psInst, psInst->uStatus.ui3RxPNo);
+        SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                     psInst->pui8Data, ui8Data[ui8Count], 1,
+                     NRF24L01PCallback, psInst);
+        ui8Count += ui8TempCount;
+        NRF24L01PClearInterrupt(psInst, NRF24L01P_STATUS_RX_DR);
+        NRF24L01PReadFIFOStatus(psInst);
+    }
+
+    return ui8Count;
+}
+
+//*****************************************************************************
+//! Enable receive pipes
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data.
+//! \param ui8Pipe is the pipe to enable
+//!
+//! Note: receive pipes are enabled when their address is set.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PEnableRxPipe(tNRF24L01P *psInst, uint8_t ui8Pipe)
+{
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_EN_RXADDR;
+
+    //
+    // Enable
+    //
+    psInst->uEnabledRxAddr.ui8Pipes |= (0x1 << ui8Pipe);
+
+    psInst->pui8Data[1] = psInst->uEnabledRxAddr.ui8Pipes;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
 }
 
 //*****************************************************************************
@@ -1604,13 +1815,14 @@ void NRF24L01PDisableAllRxPipes(tNRF24L01P *psInst)
 //! Disable AutoAcknowledge function
 //!
 //! \param psInst is a pointer to the NRF24L01P instance data.
+//! \param ui8Pipe the receive pipe
 //!
 //! This function disables all Auto Acknowledge for all pipes.
 //!
 //! \return None.
 //
 //*****************************************************************************
-void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst)
+void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe)
 {
     //
     // SPI command write register and address
@@ -1620,7 +1832,7 @@ void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst)
     //
     // Disable
     //
-    psInst->uEnabledAA.ui8Pipes = 0x00;
+    psInst->uEnabledAA.ui8Pipes ^= (0x1 << ui8Pipe);
 
     psInst->pui8Data[1] = psInst->uEnabledAA.ui8Pipes;
 
@@ -1652,7 +1864,7 @@ void NRF24L01PEnableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe)
     //
     // Enable
     //
-    psInst->uEnabledAA.ui8Pipes = 0xFF;
+    psInst->uEnabledAA.ui8Pipes |= (0x1 << ui8Pipe);
 
     psInst->pui8Data[1] = psInst->uEnabledAA.ui8Pipes;
 
@@ -1811,4 +2023,262 @@ uint16_t NRF24L01PGetARD(tNRF24L01P *psInst)
                  psInst->pui8Data, psInst->pui8Data, 1, NRF24L01PCallback, psInst);
 
     return ((psInst->ui8ARD + 1) * 250);
+}
+
+//*****************************************************************************
+//! Enable use of dynamic Payload length
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//! \param ui8Pipe the pipe for which to enable dynamic payload usage
+//!
+//! This function writes to the DYNPD register on the device allowing the
+//! dynamic payload feature, which is critical to using Auto Acknowledge as the
+//! ACK Payload and ACK packet may vary in size compared to the transmitted data
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PEnableDynPd(tNRF24L01P *psInst, uint8_t ui8Pipe)
+{
+    psInst->uEnableDynPd.ui8Pipes |= (0x1 << ui8Pipe);
+
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_DYNPD;
+
+    psInst->pui8Data[1] = psInst->uEnableDynPd.ui8Pipes;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Disables use of Dynamic Payload
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//! \param ui8Pipe
+//!
+//! This function writes to the DYNPD register on the device and disables
+//! dynamic payload usage on a given pipe.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PDisableDynPd(tNRF24L01P *psInst, uint8_t ui8Pipe)
+{
+    psInst->uEnableDynPd.ui8Pipes ^= (0x1 << ui8Pipe);
+
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_DYNPD;
+
+    psInst->pui8Data[1] = psInst->uEnableDynPd.ui8Pipes;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Enables nRf24L01+ Enhanced Shockburst™ features
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//! \param ui8Features is the \e OR of the feature options give by
+//! NRF24L01P_FEATURE_EN_...
+//!
+//! This function enables the features passed in on the nRf24L01+ device. Note
+//! that certain registers and features throughout the device require bit fields
+//! in this register to be set to operate.
+//
+//*****************************************************************************
+void NRF24L01PEnableFeatures(tNRF24L01P *psInst, uint8_t ui8Features)
+{
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_FEATURE;
+
+    psInst->pui8Data[1] = ui8Features;
+
+    psInst->uFeatures.ui8Features = ui8Features;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Disables nRF24L01+ Enhanced Shockburst™ features
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//!
+//! This functions disables \em ALL features.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PDisableFeatures(tNRF24L01P *psInst)
+{
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_FEATURE;
+
+    psInst->pui8Data[1] = 0x00;
+
+    psInst->uFeatures.ui8Features = 0x00;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, 2, NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Read device status
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//!
+//! This function reads the \e STATUS register
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PReadStatus(tNRF24L01P *psInst)
+{
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_STATUS;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->uStatus.ui8Status, 1,
+                 NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Clear interrupt from IRQ line
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//! \param ui8Int is a valid writable bit field inside the \e STATUS register
+//! provided by the \e NRF24L01P_STATUS_... (Interrupt name)
+//!
+//! This function resets an interrupt bit inside the \e STATUS register
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PClearInterrupt(tNRF24L01P *psInst, uint8_t ui8Int)
+{
+    if(!(ui8Int & NRF24L01P_STATUS_RX_DR ||
+         ui8Int & NRF24L01P_STATUS_TX_DS ||
+         ui8Int & NRF24L01P_STATUS_MAX_RT))
+    {
+        // Not a valid interrupt to clear
+        return;
+    }
+
+    //
+    // SPI command write register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_REGISTER | NRF24L01P_O_STATUS;
+
+    //
+    // Write 1 to clear bit, active low
+    //
+    psInst->uStatus.ui8Status = ui8Int;
+    psInst->pui8Data[1] = psInst->uStatus.ui8Status;
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->uStatus.ui8Status, 2,
+                 NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Read FIFO Status
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//!
+//! This function reads the FIFO status flags for both the RX and TX.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PReadFIFOStatus(tNRF24L01P *psInst)
+{
+    //
+    // SPI command read register and address
+    //
+    psInst->pui8Data[0] = NRF24L01P_R_REGISTER | NRF24L01P_O_FIFO_STATUS;
+
+
+    //
+    // Start SPI transfer, save to FIFO Status
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, psInst->uFIFOStatus.ui8FIFOStatus, 1,
+                 NRF24L01PCallback, psInst);
+}
+
+//*****************************************************************************
+//! Write ACK Payload
+//!
+//! \param psInst is a pointer to the NRF24L01P instance data
+//! \param ui8Pipe is the pipe for which to write the ACK payload for
+//! \param ui8Data is a pointer to the payload data
+//! \param ui8ount is the number of bytes in the payload to write
+//!
+//! This function writes out the ACK Payload to be used for a given pipe when
+//! the pipe receives a payload from a PTX device. A maximum of three ACK
+//! packet payloads can be pending. Payloads with the same pipe are handled with
+//! FIFO principle.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void NRF24L01PWriteAckPayload(tNRF24L01P *psInst, uint8_t ui8Pipe,
+                              uint8_t *ui8Data, uint8_t ui8Count)
+{
+    if(psInst->uConfig.ui1PrimaryRx = 0)
+    {
+        //
+        // Can only write ACK payload in RX mode
+        //
+        return;
+    }
+    int i;
+    //
+    // SPI command write TX payload
+    //
+    psInst->pui8Data[0] = NRF24L01P_W_ACK_PAYLOAD | ui8Pipe;
+
+    //
+    // Pack data to write
+    //
+    for(i = 0; i < ui8Count; i++)
+    {
+        psInst->pui8Data[1 + i] = ui8Data[i];
+    }
+
+    //
+    // Start SPI transfer
+    //
+    SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
+                 psInst->pui8Data, NULL, ui8Count + 1, NRF24L01PCallback, psInst);
 }

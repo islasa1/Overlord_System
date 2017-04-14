@@ -379,7 +379,7 @@
 // register.
 //
 //*****************************************************************************
-#define NRF24L01P__FEATURE_EN_DPL                                             \
+#define NRF24L01P_FEATURE_EN_DPL                                             \
                                 0x04    // Enables Dynamic Payload Length
 #define NRF24L01P_FEATURE_EN_ACK_PAY                                          \
                                 0x02    // Enables Payload with ACK
