@@ -266,7 +266,7 @@ void StateGetTransSize(tNRF24L01P *psInst)
     psInst->pui8RxSPLSize[ui8Pipe] = ui8TransSize;
 }
 
-void StateInitReset(psInst)
+void StateInitReset(tNRF24L01P *psInst)
 {
     //
     // Set up nRF24L01+ device for normal default operation
@@ -350,7 +350,7 @@ void StateInitReset(psInst)
     //
     // Power up
     //
-    NRF24L01PSet(psInst);
+    NRF24L01PPowerUp(psInst);
 }
 
 //*****************************************************************************
@@ -598,7 +598,7 @@ uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
     psInst->pfnCallback = pfnCallback;
     psInst->pvCallbackData = pvCallbackData;
 
-    NRF24L01PHWInit();
+    NRF24L01PHWInit(psInst);
 
     SPIMInit(psInst->psSPIInst, RADIO_SSI_BASE, INT_SSI3,
              0xFF, 0xFF, MAP_SysCtlClockGet(), RADIO_SSI_CLOCK);
@@ -1193,7 +1193,7 @@ void NRF24L01PSetRxAddress(tNRF24L01P *psInst, uint64_t ui64Address,
 
     uint8_t pui8Address[8], ui8TransferSize, ui64AddrMask;
 
-    pui8Address = &ui64Address;
+    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
 
     //
     // SPI command write register and address
@@ -1295,7 +1295,7 @@ void NRF24L01PSetTxAddress(tNRF24L01P *psInst, uint64_t ui64Address)
     uint8_t pui8Address[8];
     uint64_t ui64AddrMask;
 
-    pui8Address = &ui64Address;
+    NRF24L01P_UI64_TO_PUI8(ui64Address, pui8Address);
 
     //
     // Use assigned address width
@@ -1738,7 +1738,7 @@ int16_t NRF24L01PReceive(tNRF24L01P *psInst, uint8_t *ui8Data)
         NRF24L01PReadStatus(psInst);
         ui8TempCount = NRF24L01PGetTransferSize(psInst, psInst->uStatus.ui3RxPNo);
         SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                     psInst->pui8Data, ui8Data[ui8Count], 1,
+                     psInst->pui8Data, &(ui8Data[ui8Count]), 1,
                      NRF24L01PCallback, psInst);
         ui8Count += ui8TempCount;
         NRF24L01PClearInterrupt(psInst, NRF24L01P_STATUS_RX_DR);
@@ -2165,7 +2165,7 @@ void NRF24L01PReadStatus(tNRF24L01P *psInst)
     // Start SPI transfer
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, psInst->uStatus.ui8Status, 1,
+                 psInst->pui8Data, &(psInst->uStatus.ui8Status), 1,
                  NRF24L01PCallback, psInst);
 }
 
@@ -2206,7 +2206,7 @@ void NRF24L01PClearInterrupt(tNRF24L01P *psInst, uint8_t ui8Int)
     // Start SPI transfer
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, psInst->uStatus.ui8Status, 2,
+                 psInst->pui8Data, &(psInst->uStatus.ui8Status), 2,
                  NRF24L01PCallback, psInst);
 }
 
@@ -2232,7 +2232,7 @@ void NRF24L01PReadFIFOStatus(tNRF24L01P *psInst)
     // Start SPI transfer, save to FIFO Status
     //
     SPIMTransfer(psInst->psSPIInst, psInst->ui32CSBase, psInst->ui8CSPin,
-                 psInst->pui8Data, psInst->uFIFOStatus.ui8FIFOStatus, 1,
+                 psInst->pui8Data, &(psInst->uFIFOStatus.ui8FIFOStatus), 1,
                  NRF24L01PCallback, psInst);
 }
 
@@ -2255,7 +2255,7 @@ void NRF24L01PReadFIFOStatus(tNRF24L01P *psInst)
 void NRF24L01PWriteAckPayload(tNRF24L01P *psInst, uint8_t ui8Pipe,
                               uint8_t *ui8Data, uint8_t ui8Count)
 {
-    if(psInst->uConfig.ui1PrimaryRx = 0)
+    if(psInst->uConfig.ui1PrimaryRx == 0)
     {
         //
         // Can only write ACK payload in RX mode

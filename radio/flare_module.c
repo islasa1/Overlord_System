@@ -5,7 +5,7 @@
  *      Author: Anthony
  */
 
-#include "../../peripherals/nrf24l01p.h"
+#include "../peripherals/nrf24l01p.h"
 
 #include "flare_module.h"
 
@@ -33,6 +33,7 @@ static void FlareAppCallback(void *pvData, uint_fast8_t ui8Status)
 void FlareInit()
 {
     NRF24L01PInit(sg_psNRF24L01PInst, sg_psSPIMInst, FlareAppCallback, sg_psNRF24L01PInst);
+
 }
 
 void FlareTest_1(void)

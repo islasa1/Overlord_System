@@ -13,7 +13,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "inc/hw_memmap.h"
+#include "inc/hw_ints.h"
+
 #include "driverlib/gpio.h"
+#include "driverlib/ssi.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/pin_map.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 
@@ -467,10 +473,9 @@ extern void NRF24L01PEnableMode(tNRF24L01P *psInst);
 extern void NRF24L01PDisableMode(tNRF24L01P *psInst);
 extern int32_t NRF24L01PTransmit(tNRF24L01P *psInst, uint8_t *ui8Data,
                                  uint8_t ui8Count);
-extern int32_t NRF24L01PReceive(tNRF24L01P *psInst, uint8_t ui8Pipe,
-                                uint8_t *ui8Data, uint8_t ui8Count);
+extern int16_t NRF24L01PReceive(tNRF24L01P *psInst, uint8_t *ui8Data);
 extern void NRF24L01PDisableAllRxPipes(tNRF24L01P *psInst);
-extern void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst);
+extern void NRF24L01PDisableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe);
 extern void NRF24L01PEnableAutoAcknowledge(tNRF24L01P *psInst, uint8_t ui8Pipe);
 extern void NRF24L01PDisableAutoRetransmit(tNRF24L01P *psInst);
 extern void NRF24L01PSetARC(tNRF24L01P *psInst, uint8_t ui8Count);
