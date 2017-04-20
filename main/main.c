@@ -127,6 +127,7 @@ int main(void)
     UARTprintf("Initializing...\r\n");
     CharterInit();
     UARTprintf("Done\r\n");
-
+    FlareInit();
+    FlareTest_1();
     CharterTest_1();
 }

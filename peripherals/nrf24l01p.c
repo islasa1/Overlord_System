@@ -57,6 +57,7 @@
 //*****************************************************************************
 #define RADIO_SSI_BASE              SSI3_BASE
 #define RADIO_SSI_CLOCK             10000000
+#define RADIO_SSI_INT               INT_SSI3
 
 #define NRF24L01P_STATE_IDLE            0
 #define NRF24L01P_STATE_LAST            1
@@ -600,7 +601,7 @@ uint_fast8_t NRF24L01PInit(tNRF24L01P *psInst, tSPIMInstance *psSPIInst,
 
     NRF24L01PHWInit(psInst);
 
-    SPIMInit(psInst->psSPIInst, RADIO_SSI_BASE, INT_SSI3,
+    SPIMInit(psInst->psSPIInst, RADIO_SSI_BASE, RADIO_SSI_INT,
              0xFF, 0xFF, MAP_SysCtlClockGet(), RADIO_SSI_CLOCK);
 
     //
