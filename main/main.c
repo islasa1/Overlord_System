@@ -164,7 +164,7 @@ void ConsoleInit(void)
  }
 
 int main(void)
-{
+  {
     //
     // Set the clocking to run at 80MHz.
     //
