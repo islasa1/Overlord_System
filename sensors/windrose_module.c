@@ -12,13 +12,16 @@
 #include "driverlib/eeprom.h"
 #include "driverlib/sysctl.h"
 
-#define TIMESTEP .1
+#define TIMESTEP .01
 #define CALIBRATION_DATA_ADDRESS 0
 #define CALIBRATION_DATA_SIZE sizeof(tCalibrationData)
 
 #ifndef M_PI
 #define M_PI                    3.14159265358979323846
 #endif
+
+#define G 9.79193
+#define COMPASS_VAR (g_sCalData.fXMagVar+g_sCalData.fYMagVar)
 
 //*****************************************************************************
 //
@@ -27,6 +30,8 @@
 //*****************************************************************************
 typedef struct
 {
+    float fXAccelVar;
+    float fYAccelVar;
     float fXAccelBias;
     float fYAccelBias;
     float fZAccelBias;
@@ -39,6 +44,7 @@ typedef struct
     float fZYAccelAlignment;
     float fXZAccelAlignment;
     float fYZAccelAlignment;
+    float fZGyroVar;
     float fXGyroBias;
     float fYGyroBias;
     float fZGyroBias;
@@ -51,9 +57,11 @@ typedef struct
     float fZYGyroAlignment;
     float fXZGyroAlignment;
     float fYZGyroAlignment;
+    float fXMagVar;
+    float fYMagVar;
 } tCalibrationData;
 
-tCalibrationData g_sCalibrationData;
+tCalibrationData g_sCalData;
 
 //*****************************************************************************
 //
@@ -64,7 +72,6 @@ float g_fAbsoluteX;
 float g_fAbsoluteY;
 float g_fCurrentHeading;
 float g_pfCurrentVelocity[2];
-float g_pfInitialAccel[3];
 
 //*****************************************************************************
 //
@@ -80,30 +87,35 @@ float g_pfInitialAccel[3];
 void
 ResetCalibrationData(void)
 {
-    g_sCalibrationData.fXAccelBias = 0;
-    g_sCalibrationData.fYAccelBias = 0;
-    g_sCalibrationData.fZAccelBias = 0;
-    g_sCalibrationData.fXAccelScale = 1;
-    g_sCalibrationData.fYAccelScale = 1;
-    g_sCalibrationData.fZAccelScale = 1;
-    g_sCalibrationData.fYXAccelAlignment = 0;
-    g_sCalibrationData.fZXAccelAlignment = 0;
-    g_sCalibrationData.fXYAccelAlignment = 0;
-    g_sCalibrationData.fZYAccelAlignment = 0;
-    g_sCalibrationData.fXZAccelAlignment = 0;
-    g_sCalibrationData.fYZAccelAlignment = 0;
-    g_sCalibrationData.fXGyroBias = 0;
-    g_sCalibrationData.fYGyroBias = 0;
-    g_sCalibrationData.fZGyroBias = 0;
-    g_sCalibrationData.fXGyroScale = 1;
-    g_sCalibrationData.fYGyroScale = 1;
-    g_sCalibrationData.fZGyroScale = 1;
-    g_sCalibrationData.fYXGyroAlignment = 0;
-    g_sCalibrationData.fZXGyroAlignment = 0;
-    g_sCalibrationData.fXYGyroAlignment = 0;
-    g_sCalibrationData.fZYGyroAlignment = 0;
-    g_sCalibrationData.fXZGyroAlignment = 0;
-    g_sCalibrationData.fYZGyroAlignment = 0;
+    g_sCalData.fXAccelVar = 0;
+    g_sCalData.fYAccelVar = 0;
+    g_sCalData.fXAccelBias = 0;
+    g_sCalData.fYAccelBias = 0;
+    g_sCalData.fZAccelBias = 0;
+    g_sCalData.fXAccelScale = 1;
+    g_sCalData.fYAccelScale = 1;
+    g_sCalData.fZAccelScale = 1;
+    g_sCalData.fYXAccelAlignment = 0;
+    g_sCalData.fZXAccelAlignment = 0;
+    g_sCalData.fXYAccelAlignment = 0;
+    g_sCalData.fZYAccelAlignment = 0;
+    g_sCalData.fXZAccelAlignment = 0;
+    g_sCalData.fYZAccelAlignment = 0;
+    g_sCalData.fZGyroVar = 0;
+    g_sCalData.fXGyroBias = 0;
+    g_sCalData.fYGyroBias = 0;
+    g_sCalData.fZGyroBias = 0;
+    g_sCalData.fXGyroScale = 1;
+    g_sCalData.fYGyroScale = 1;
+    g_sCalData.fZGyroScale = 1;
+    g_sCalData.fYXGyroAlignment = 0;
+    g_sCalData.fZXGyroAlignment = 0;
+    g_sCalData.fXYGyroAlignment = 0;
+    g_sCalData.fZYGyroAlignment = 0;
+    g_sCalData.fXZGyroAlignment = 0;
+    g_sCalData.fYZGyroAlignment = 0;
+    g_sCalData.fXMagVar = 0;
+    g_sCalData.fYMagVar = 0;
 }
 
 //*****************************************************************************
@@ -134,7 +146,7 @@ ReadCalibrationData(void)
     //
     // Read the data from EEPROM
     //
-    EEPROMRead((uint32_t *)&g_sCalibrationData, CALIBRATION_DATA_ADDRESS,
+    EEPROMRead((uint32_t *)&g_sCalData, CALIBRATION_DATA_ADDRESS,
                CALIBRATION_DATA_SIZE);
 }
 
@@ -159,9 +171,6 @@ InitPosition(float *pfAccel)
     g_fAbsoluteY = 0;
     g_pfCurrentVelocity[0] = 0;
     g_pfCurrentVelocity[1] = 0;
-    g_pfInitialAccel[0] = cos(g_fCurrentHeading)*pfAccel[0] - sin(g_fCurrentHeading)*pfAccel[1];
-    g_pfInitialAccel[1] = sin(g_fCurrentHeading)*pfAccel[0] + cos(g_fCurrentHeading)*pfAccel[1];
-    g_pfInitialAccel[2] = pfAccel[2];
 }
 
 //*****************************************************************************
@@ -203,9 +212,18 @@ InitHeading(float *pfMag)
 void
 UpdateHeading(float *pfGyro, float *pfMag)
 {
-    float fHeadingGyro = g_fCurrentHeading + pfGyro[2] * TIMESTEP;
+    static int iSamples = 1;
+
+    pfGyro[2] -= g_sCalData.fZGyroBias;
+
+    pfGyro[2] = pfGyro[2] * g_sCalData.fZGyroScale + pfGyro[0] * g_sCalData.fZXGyroAlignment
+               + pfGyro[1] * g_sCalData.fZYGyroAlignment;
+
+    float fHeadingGyro = g_fCurrentHeading - pfGyro[2] * TIMESTEP;
     float fHeadingMag = atan2(-pfMag[1], pfMag[0]);
-    float fGyroWeight = .75;
+    float fGyroWeight = COMPASS_VAR / (COMPASS_VAR + g_sCalData.fZGyroVar * TIMESTEP * iSamples);
+    iSamples++;
+
     //
     // Correction to avoid negative values.
     //
@@ -235,7 +253,8 @@ UpdateHeading(float *pfGyro, float *pfMag)
 //!
 //! This function updates the current absolute position which is the
 //! coordinates relative to the initial position in meters. The x-axis of the
-//! coordinate system is North.
+//! coordinate system is North. Before integration, calibration is applied to
+//! the accelerometer readings.
 //!
 //! \return None.
 //
@@ -243,12 +262,43 @@ UpdateHeading(float *pfGyro, float *pfMag)
 void
 UpdatePosition(float *pfAccel)
 {
-    g_pfCurrentVelocity[0] += (cos(g_fCurrentHeading)*pfAccel[0] - sin(g_fCurrentHeading)*pfAccel[1]
-                               - g_pfInitialAccel[0]) * TIMESTEP;
-    g_pfCurrentVelocity[1] += (sin(g_fCurrentHeading)*pfAccel[0] + cos(g_fCurrentHeading)*pfAccel[1]
-                               - g_pfInitialAccel[1]) * TIMESTEP;
+    //
+    // Apply calibration
+    //
+    pfAccel[0] -= g_sCalData.fXAccelBias;
+    pfAccel[1] -= g_sCalData.fYAccelBias;
+    pfAccel[2] -= g_sCalData.fZAccelBias;
+
+    pfAccel[0] = pfAccel[0] * g_sCalData.fXAccelScale + pfAccel[1] * g_sCalData.fXYAccelAlignment
+               + pfAccel[2] * g_sCalData.fXZAccelAlignment;
+    pfAccel[1] = pfAccel[1] * g_sCalData.fYAccelScale + pfAccel[0] * g_sCalData.fYXAccelAlignment
+               + pfAccel[2] * g_sCalData.fYZAccelAlignment;
+    pfAccel[2] = pfAccel[2] * g_sCalData.fZAccelScale + pfAccel[0] * g_sCalData.fZXAccelAlignment
+               + pfAccel[1] * g_sCalData.fZYAccelAlignment;
+
+    //
+    // Rotate acceleration data
+    //
+    pfAccel[0] = cos(g_fCurrentHeading)*pfAccel[0] - sin(g_fCurrentHeading)*pfAccel[1];
+    pfAccel[1] = sin(g_fCurrentHeading)*pfAccel[0] + cos(g_fCurrentHeading)*pfAccel[1];
+
+    //
+    // Update the position
+    //
     g_fAbsoluteX += g_pfCurrentVelocity[0] * TIMESTEP + pfAccel[0] * TIMESTEP * TIMESTEP / 2;
     g_fAbsoluteY += g_pfCurrentVelocity[1] * TIMESTEP + pfAccel[1] * TIMESTEP * TIMESTEP / 2;
+
+    //
+    // Update the velocities
+    //
+    g_pfCurrentVelocity[0] += pfAccel[0] * TIMESTEP;
+    g_pfCurrentVelocity[1] += pfAccel[1] * TIMESTEP;
+}
+
+void GetPosition(float *x, float *y)
+{
+    *x = g_fAbsoluteX;
+    *y = g_fAbsoluteY;
 }
 
 //*****************************************************************************
@@ -267,10 +317,10 @@ UpdatePosition(float *pfAccel)
 float
 GetRelativeHeading(float x, float y)
 {
-    float fRelativeX = x - g_fAbsoluteX;
-    float fRelativeY = y - g_fAbsoluteY;
+    float fRelativeX = g_fAbsoluteX - x;
+    float fRelativeY = g_fAbsoluteY - y;
 
-    return atan2(-fRelativeY, fRelativeX) + g_fCurrentHeading;
+    return atan2(fRelativeY, fRelativeX) + g_fCurrentHeading;
 }
 
 

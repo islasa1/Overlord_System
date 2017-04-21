@@ -269,9 +269,9 @@ MPU9X50Callback(void *pvCallbackData, uint_fast8_t ui8Status)
             psInst->uCommand.pui8Buffer[0] = MPU9X50_O_SMPLRT_DIV;
 
             //
-            // Set sample rate to 50 hertz.  1000 hz / (1 + 19)
+            // Set sample rate to 100 hertz.  1000 hz / (1 + 9)
             //
-            psInst->uCommand.pui8Buffer[1] = 19;
+            psInst->uCommand.pui8Buffer[1] = 9;
             I2CMWrite(psInst->psI2CInst, psInst->ui8Addr,
                       psInst->uCommand.pui8Buffer, 2, MPU9X50Callback, psInst);
 
